@@ -66,8 +66,8 @@ Rules:
 3. **Resilient submit:** every pack goes through a `localStorage` queue with a device-generated `client_id`. If the network drops, it's retried every 15 s and when the connection returns, with a visible "pending" badge. Retries are idempotent (unique `client_id`), and the pack keeps the device's time if it's plausible (up to 48 h old). This is not full offline mode, but no pack is silently lost.
 
 ### Supervisor area (`/admin/*`, supervisor login)
-4. `/admin/parachutes`: list, filter by status, create/edit, retire. The detail page shows the pack history.
-5. `/admin/packers`: list, create/edit, deactivate, set/reset PIN. The detail page shows activity.
+4. `/admin/parachutes`: list with search (number, model, serial, owner), status filter and a "dados de baja" view, with pack count and last pack. Create/edit with validation; a number that only differs by leading zeros from an existing one ("23" vs "023") is rejected. Retire/reactivate. The detail page shows the latest 50 packs.
+5. `/admin/packers`: active/deactivated lists of packers and supervisors with pack counts. Create/edit (supervisors get a username and password; a blank password on edit keeps the current one; demoting clears the login), deactivate/reactivate, and set/change/remove a PIN. Guards: you can't deactivate or demote yourself, and at least one active supervisor must remain. The detail page shows the latest 50 packs.
 6. `/admin/days`: list of jornadas with totals. The detail page has a Time / Packer / Parachute table and per-packer counts.
 7. `/admin/history`: all packs, filterable by date range, jornada, packer, parachute and time range, with pagination. Filters live in URL `searchParams` so views can be shared.
 8. **Void/correct a pack**, with a reason. Available from the history and day pages.
@@ -95,11 +95,11 @@ Because the URL is public, the packing screen can't be open to anyone.
 | 1 | Data model | Schema, first migration, seed script, time-zone helpers + tests | 1 d | ✅ |
 | 2 | Register-pack screen | Packer grid, parachute input, Server Action, checks, toast, today list, retry queue | 2 d | ✅ |
 | 3 | Identification | Sessions (`jose`), station unlock, packer PIN toggle, supervisor login, `proxy.ts` | 1.5 d | ✅ |
-| 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | |
+| 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | ✅ |
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | |
 | 6 | Hardening + deploy | Playwright tests for critical flows, Vercel + Neon setup, user guide | 1.5 d | |
 
-**Total: about 11 working days.** Milestones 0–3 are done.
+**Total: about 11 working days.** Milestones 0–4 are done.
 
 ---
 

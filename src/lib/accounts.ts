@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
+import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { stations, users } from "@/db/schema";
 import type { Db } from "./packs";
 
@@ -83,12 +83,20 @@ export async function listStations(db: Db) {
     })
     .from(stations)
     .leftJoin(users, eq(users.id, stations.createdById))
-    .orderBy(stations.revokedAt, desc(stations.lastSeenAt));
+    // Active devices first, most recently used on top.
+    .orderBy(sql`${stations.revokedAt} nulls first`, sql`${stations.lastSeenAt} desc nulls last`);
 }
 
 export async function revokeStation(db: Db, stationId: number, now = new Date()) {
   await db
     .update(stations)
     .set({ revokedAt: now })
+    .where(and(eq(stations.id, stationId), isNull(stations.revokedAt)));
+}
+
+export async function renameStation(db: Db, stationId: number, name: string) {
+  await db
+    .update(stations)
+    .set({ name: name.trim() })
     .where(and(eq(stations.id, stationId), isNull(stations.revokedAt)));
 }

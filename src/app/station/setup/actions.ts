@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { createStation } from "@/lib/accounts";
-import { getSupervisor, startStationSession } from "@/lib/auth";
+import { createStation, renameStation } from "@/lib/accounts";
+import { getStation, getSupervisor, startStationSession } from "@/lib/auth";
 
 export type UnlockState = { error?: string };
 
@@ -16,6 +16,13 @@ export async function unlockStationAction(
 
   const name = String(formData.get("name") ?? "").trim().slice(0, 60);
   if (!name) return { error: "Ponle un nombre al dispositivo (p. ej. «PC plegado»)." };
+
+  // Already authorized: just rename it, so the device doesn't end up listed twice.
+  const current = await getStation();
+  if (current) {
+    await renameStation(db, current.id, name);
+    redirect("/admin/stations");
+  }
 
   const station = await createStation(db, name, supervisor.id);
   await startStationSession(station.id);

@@ -6,6 +6,8 @@ import {
   getActiveStation,
   getActiveSupervisor,
   hashSecret,
+  listStations,
+  renameStation,
   revokeStation,
   verifyPackerPin,
   verifySupervisorLogin,
@@ -66,5 +68,18 @@ describe.skipIf(!testDbUrl)("accounts (db)", () => {
     expect(await getActiveStation(db, s.id)).toEqual({ id: s.id, name: "PC plegado" });
     await revokeStation(db, s.id);
     expect(await getActiveStation(db, s.id)).toBeNull();
+  });
+
+  it("lists active stations before revoked ones", async () => {
+    const old = await createStation(db, "Viejo", boss);
+    await createStation(db, "Nuevo", boss);
+    await revokeStation(db, old.id);
+    expect((await listStations(db)).map((s) => s.name)).toEqual(["Nuevo", "Viejo"]);
+  });
+
+  it("renames a station in place", async () => {
+    const s = await createStation(db, "Tablet", boss);
+    await renameStation(db, s.id, " Tablet hangar ");
+    expect(await getActiveStation(db, s.id)).toEqual({ id: s.id, name: "Tablet hangar" });
   });
 });

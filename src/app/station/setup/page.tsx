@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { Suspense } from "react";
-import { requireSupervisor } from "@/lib/auth";
+import { getStation, requireSupervisor } from "@/lib/auth";
 import { UnlockForm } from "./unlock-form";
 
 export const metadata = { title: "Autorizar dispositivo · Plegados" };
@@ -8,11 +9,7 @@ export default function StationSetupPage() {
   return (
     <section className="mx-auto max-w-sm pt-8">
       <h1 className="text-2xl font-semibold">Autorizar dispositivo</h1>
-      <p className="mt-1 mb-6 text-sm opacity-70">
-        Este navegador podrá registrar plegados durante 90 días, o hasta que se revoque desde
-        «Dispositivos».
-      </p>
-      <Suspense fallback={<p className="text-sm opacity-50">Cargando…</p>}>
+      <Suspense fallback={<p className="mt-4 text-sm opacity-50">Cargando…</p>}>
         <Gate />
       </Suspense>
     </section>
@@ -21,5 +18,30 @@ export default function StationSetupPage() {
 
 async function Gate() {
   await requireSupervisor("/station/setup");
-  return <UnlockForm />;
+  const current = await getStation();
+
+  if (current) {
+    return (
+      <>
+        <p className="mt-1 mb-6 text-sm opacity-70">
+          Este dispositivo ya está autorizado como <strong>{current.name}</strong>. Puedes{" "}
+          <Link href="/" className="text-blue-600 hover:underline">
+            ir a registrar plegados
+          </Link>{" "}
+          o cambiarle el nombre.
+        </p>
+        <UnlockForm currentName={current.name} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className="mt-1 mb-6 text-sm opacity-70">
+        Este navegador podrá registrar plegados durante 90 días, o hasta que se revoque desde
+        «Dispositivos».
+      </p>
+      <UnlockForm />
+    </>
+  );
 }

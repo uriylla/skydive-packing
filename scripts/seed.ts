@@ -48,7 +48,9 @@ async function main() {
 
   const sampleChutes = [12, 18, 23, 25, 31, 41, 45].map((n) => ({
     number: String(n).padStart(3, "0"),
-    model: n % 2 ? "Navigator 260" : "Sabre3 210",
+    // 012 and 018 are the tandems in the sample data.
+    kind: n === 12 || n === 18 ? ("tandem" as const) : ("normal" as const),
+    model: n === 12 || n === 18 ? "Sigma 340" : n % 2 ? "Navigator 260" : "Sabre3 210",
     owner: "Saltamos",
     status: n === 45 ? ("out_of_service" as const) : ("active" as const),
   }));
@@ -59,6 +61,13 @@ async function main() {
 
   if (process.argv.includes("--demo-packs")) await demoPacks();
 }
+
+const CUSTOMER_RIGS = [
+  "Pedro – Javelin azul",
+  "Laura – Mirage negro",
+  "Club Lleida – Vector",
+  "Marc – Icon rojo",
+];
 
 async function demoPacks() {
   if (process.env.NODE_ENV === "production")
@@ -80,12 +89,16 @@ async function demoPacks() {
       const at = new Date(day);
       at.setUTCHours(7, 0, 0, 0);
       at.setTime(at.getTime() + Math.floor(Math.random() * 10 * 3_600_000));
+      // About 1 in 10 packs is a customer's own rig that isn't in the system.
+      const external = Math.random() < 0.1;
       const res = await registerPack(
         db,
         {
           clientId: randomUUID(),
           packerId: pick(packers).id,
-          parachuteNumber: pick(chutes).number,
+          ...(external
+            ? { external: { kind: "normal" as const, label: pick(CUSTOMER_RIGS) } }
+            : { parachuteNumber: pick(chutes).number }),
           packedAt: at,
         },
         at,

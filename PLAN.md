@@ -99,11 +99,23 @@ Because the URL is public, the packing screen can't be open to anyone.
 | 3 | Identification | Sessions (`jose`), station unlock, packer PIN toggle, supervisor login, `proxy.ts` | 1.5 d | ✅ |
 | 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | ✅ |
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | ✅ |
+| 5b | Parachute types + external packs | Tándem/Normal type on parachutes and packs, type splits everywhere, unregistered (customer) parachutes from the packing screen | 2 d | ✅ |
 | 6 | Hardening + deploy | Playwright tests for critical flows, Vercel + Neon setup, user guide | 1.5 d | |
 
-**Total: about 11 working days.** Milestones 0–5 are done.
+**Total: about 13 working days.** Milestones 0–5b are done.
 
 ---
+
+### 5b. Parachute types and external packs (added after the proposal)
+
+Packers are paid differently for tandem and normal parachutes, and some of the normal parachutes are customers' own rigs that aren't in the system.
+
+- **Type:** every parachute is *Tándem* or *Normal* (a Postgres enum, `parachute_kind`). The type is required in the parachute form and shown/filterable in the list. Existing parachutes become *Normal* in the migration; mark the tandems once.
+- **Packs snapshot the type** (`packs.kind`) when registered, so reclassifying a parachute later never changes past counts. Corrections can change it.
+- **External packs:** on the packing screen, "Paracaídas externo" asks for the type and a short description (e.g. "Pedro – Javelin azul"). The pack has no `parachute_id`, only `kind` and `external_label` (a DB check enforces exactly one of the two). Any packer can register one, and status checks don't apply.
+- **Type splits everywhere counts appear:** the packing screen's "Hoy" panel ("Carlos — 12 · 8 T · 4 N"), jornada list and day pages, and history (type column, type filter, "Externos" filter). Pack tables show an "Externo" tag with the description.
+- **Corrections** can switch a pack between a registered parachute and an external one, and change an external pack's type or description.
+- **Deferred:** a pay summary per packer by type and period (with optional rates), and an ownership field. The "Propietario" text covers ownership for now.
 
 ## 6. Open questions for the client
 

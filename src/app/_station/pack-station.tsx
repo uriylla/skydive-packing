@@ -7,10 +7,11 @@ import {
   type RegisterPackActionInput,
   type RegisterPackActionResult,
 } from "../actions";
+import { KIND_LABEL, KINDS, MAX_EXTERNAL_LABEL, type Kind } from "@/lib/kinds";
 import { createLocalStore } from "./local-store";
 
 type Packer = { id: number; name: string };
-type Chute = { number: string; status: "active" | "maintenance" | "out_of_service" };
+type Chute = { number: string; status: "active" | "maintenance" | "out_of_service"; kind: Kind };
 type QueuedPack = RegisterPackActionInput & { packedAt: string };
 /** The packer selected on this device; `token` is set when PINs are required. */
 type Selection = { id: number; token?: string } | null;
@@ -58,6 +59,10 @@ export function PackStation({
   const [notice, setNotice] = useState<Notice>(null);
   const [offline, setOffline] = useState(false);
   const [pinFor, setPinFor] = useState<Packer | null>(null);
+  /** "Paracaídas externo" mode: a parachute that isn't in the system. */
+  const [externalMode, setExternalMode] = useState(false);
+  const [externalKind, setExternalKind] = useState<Kind | null>(null);
+  const [externalLabel, setExternalLabel] = useState("");
   const flushing = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,55 +70,59 @@ export function PackStation({
   const packer =
     packers.find((p) => p.id === selection?.id && (!requirePin || selection?.token)) ?? null;
 
-  const flush = useCallback(async (currentClientId?: string) => {
-    if (flushing.current) return;
-    flushing.current = true;
-    try {
-      for (const item of queueStore.get()) {
-        let res: RegisterPackActionResult;
-        try {
-          res = await registerPackAction(item);
-        } catch {
-          // Network/server down: keep it queued and retry later.
-          setOffline(true);
-          if (item.clientId === currentClientId) {
+  const flush = useCallback(
+    async (currentClientId?: string) => {
+      if (flushing.current) return;
+      flushing.current = true;
+      try {
+        for (const item of queueStore.get()) {
+          let res: RegisterPackActionResult;
+          try {
+            res = await registerPackAction(item);
+          } catch {
+            // Network/server down: keep it queued and retry later.
+            setOffline(true);
+            if (item.clientId === currentClientId) {
+              setNotice({
+                kind: "info",
+                text: "Sin conexión. El plegado se ha guardado y se enviará automáticamente.",
+              });
+            }
+            return;
+          }
+          setOffline(false);
+          const isCurrent = item.clientId === currentClientId;
+          if (!res.ok && res.error === "STATION_UNAUTHORIZED") {
+            // Keep everything queued: the packs go through once the device is re-authorized.
+            setNotice({ kind: "error", text: res.message });
+            return;
+          }
+          if (!res.ok && res.error === "PACKER_PIN_REQUIRED") {
+            selectionStore.set((s) => (s?.id === item.packerId ? null : s));
+          }
+          queueStore.set((q) => q.filter((x) => x.clientId !== item.clientId));
+          if (res.ok) {
+            if (isCurrent) {
+              const { pack } = res;
+              const what = pack.parachuteNumber ?? `Externo: ${pack.externalLabel}`;
+              setNotice({
+                kind: "ok",
+                text: `${timeFmt.format(new Date(pack.packedAt))} — ${pack.packerName} — ${what} (${KIND_LABEL[pack.kind]})`,
+              });
+            }
+          } else {
             setNotice({
-              kind: "info",
-              text: "Sin conexión. El plegado se ha guardado y se enviará automáticamente.",
+              kind: "error",
+              text: isCurrent ? res.message : `Plegado pendiente rechazado: ${res.message}`,
             });
           }
-          return;
         }
-        setOffline(false);
-        const isCurrent = item.clientId === currentClientId;
-        if (!res.ok && res.error === "STATION_UNAUTHORIZED") {
-          // Keep everything queued: the packs go through once the device is re-authorized.
-          setNotice({ kind: "error", text: res.message });
-          return;
-        }
-        if (!res.ok && res.error === "PACKER_PIN_REQUIRED") {
-          selectionStore.set((s) => (s?.id === item.packerId ? null : s));
-        }
-        queueStore.set((q) => q.filter((x) => x.clientId !== item.clientId));
-        if (res.ok) {
-          if (isCurrent) {
-            const { pack } = res;
-            setNotice({
-              kind: "ok",
-              text: `${timeFmt.format(new Date(pack.packedAt))} — ${pack.packerName} — ${pack.parachuteNumber}`,
-            });
-          }
-        } else {
-          setNotice({
-            kind: "error",
-            text: isCurrent ? res.message : `Plegado pendiente rechazado: ${res.message}`,
-          });
-        }
+      } finally {
+        flushing.current = false;
       }
-    } finally {
-      flushing.current = false;
-    }
-  }, [timeFmt]);
+    },
+    [timeFmt],
+  );
 
   // Retry queued packs periodically and when the connection comes back.
   useEffect(() => {
@@ -154,6 +163,19 @@ export function PackStation({
     window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 
+  function enqueue(what: Pick<QueuedPack, "parachuteNumber" | "external">) {
+    if (!packer) return;
+    const item: QueuedPack = {
+      clientId: uuid(),
+      packerId: packer.id,
+      packerToken: selection?.token,
+      ...what,
+      packedAt: new Date().toISOString(),
+    };
+    queueStore.set((q) => [...q, item]);
+    void flush(item.clientId);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const value = number.trim();
@@ -165,17 +187,32 @@ export function PackStation({
       inputRef.current?.focus();
       return;
     }
-    const item: QueuedPack = {
-      clientId: uuid(),
-      packerId: packer.id,
-      packerToken: selection?.token,
-      parachuteNumber: value,
-      packedAt: new Date().toISOString(),
-    };
-    queueStore.set((q) => [...q, item]);
+    enqueue({ parachuteNumber: value });
     setNumber("");
     inputRef.current?.focus();
-    void flush(item.clientId);
+  }
+
+  function submitExternal(e: React.FormEvent) {
+    e.preventDefault();
+    const label = externalLabel.trim();
+    if (!packer || !externalKind || !label) return;
+    enqueue({ external: { kind: externalKind, label } });
+    closeExternal();
+  }
+
+  function openExternal() {
+    setExternalMode(true);
+    setNotice(null);
+    // Start from what was typed, if anything (e.g. an unknown number).
+    if (number.trim()) setExternalLabel(number.trim());
+    setNumber("");
+  }
+
+  function closeExternal() {
+    setExternalMode(false);
+    setExternalKind(null);
+    setExternalLabel("");
+    window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   return (
@@ -196,7 +233,7 @@ export function PackStation({
                   type="button"
                   onClick={() => selectPacker(p)}
                   aria-pressed={selected}
-                  className={`rounded-xl border-2 px-4 py-5 text-lg font-medium transition ${
+                  className={`rounded-xl border-2 px-4 py-5 text-lg font-medium break-words transition ${
                     selected
                       ? "border-blue-600 bg-blue-600 text-white"
                       : "border-black/10 hover:border-blue-400 dark:border-white/15"
@@ -218,44 +255,110 @@ export function PackStation({
         )}
       </section>
 
-      <form onSubmit={submit} aria-labelledby="chute-heading">
-        <h2 id="chute-heading" className="mb-2 text-sm font-medium opacity-70">
-          2. Paracaídas
-        </h2>
-        <div className="flex gap-3">
+      {externalMode ? (
+        <form onSubmit={submitExternal} aria-labelledby="external-heading" className="space-y-3">
+          <h2 id="external-heading" className="text-sm font-medium opacity-70">
+            2. Paracaídas externo (no registrado)
+          </h2>
+          <fieldset>
+            <legend className="sr-only">Tipo</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setExternalKind(k)}
+                  aria-pressed={externalKind === k}
+                  className={`rounded-xl border-2 px-4 py-4 text-lg font-medium ${
+                    externalKind === k
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-black/10 hover:border-blue-400 dark:border-white/15"
+                  }`}
+                >
+                  {KIND_LABEL[k]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <input
-            ref={inputRef}
-            value={number}
-            onChange={(e) => setNumber(e.target.value)}
-            list="parachute-numbers"
-            inputMode="numeric"
+            value={externalLabel}
+            onChange={(e) => setExternalLabel(e.target.value)}
+            maxLength={MAX_EXTERNAL_LABEL}
             autoComplete="off"
             autoFocus
-            placeholder="Ej. 023"
-            aria-label="Número de paracaídas"
-            className="min-w-0 flex-1 rounded-xl border-2 border-black/15 bg-transparent px-4 py-4 text-2xl tracking-wider outline-none focus:border-blue-600 dark:border-white/20"
+            placeholder="Propietario / descripción, p. ej. Pedro – Javelin azul"
+            aria-label="Descripción del paracaídas externo"
+            className="w-full rounded-xl border-2 border-black/15 bg-transparent px-4 py-3 text-lg outline-none focus:border-blue-600 dark:border-white/20"
           />
-          <button
-            type="submit"
-            disabled={!packer || !number.trim()}
-            className="rounded-xl bg-green-600 px-6 text-lg font-semibold text-white disabled:opacity-40"
-          >
-            Registrar
-          </button>
-        </div>
-        <datalist id="parachute-numbers">
-          {parachutes
-            .filter((c) => c.status !== "out_of_service")
-            .map((c) => (
-              <option key={c.number} value={c.number} />
-            ))}
-        </datalist>
-        {packer && (
-          <p className="mt-2 text-sm opacity-70">
-            Registrando como <strong>{packer.name}</strong>
-          </p>
-        )}
-      </form>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="submit"
+              disabled={!packer || !externalKind || !externalLabel.trim()}
+              className="rounded-xl bg-green-600 px-6 py-3 text-lg font-semibold text-white disabled:opacity-40"
+            >
+              Registrar externo
+            </button>
+            <button
+              type="button"
+              onClick={closeExternal}
+              className="text-sm opacity-70 hover:underline"
+            >
+              Cancelar
+            </button>
+          </div>
+          {packer && (
+            <p className="text-sm opacity-70">
+              Registrando como <strong>{packer.name}</strong>
+            </p>
+          )}
+        </form>
+      ) : (
+        <form onSubmit={submit} aria-labelledby="chute-heading">
+          <h2 id="chute-heading" className="mb-2 text-sm font-medium opacity-70">
+            2. Paracaídas
+          </h2>
+          <div className="flex gap-3">
+            <input
+              ref={inputRef}
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
+              list="parachute-numbers"
+              inputMode="numeric"
+              autoComplete="off"
+              autoFocus
+              placeholder="Ej. 023"
+              aria-label="Número de paracaídas"
+              className="min-w-0 flex-1 rounded-xl border-2 border-black/15 bg-transparent px-4 py-4 text-2xl tracking-wider outline-none focus:border-blue-600 dark:border-white/20"
+            />
+            <button
+              type="submit"
+              disabled={!packer || !number.trim()}
+              className="rounded-xl bg-green-600 px-6 text-lg font-semibold text-white disabled:opacity-40"
+            >
+              Registrar
+            </button>
+          </div>
+          <datalist id="parachute-numbers">
+            {parachutes
+              .filter((c) => c.status !== "out_of_service")
+              .map((c) => (
+                <option key={c.number} value={c.number} label={KIND_LABEL[c.kind]} />
+              ))}
+          </datalist>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="opacity-70">
+              {packer && (
+                <>
+                  Registrando como <strong>{packer.name}</strong>
+                </>
+              )}
+            </span>
+            <button type="button" onClick={openExternal} className="text-blue-600 hover:underline">
+              ¿No está registrado? Paracaídas externo
+            </button>
+          </div>
+        </form>
+      )}
 
       <div aria-live="polite" className="min-h-14">
         {notice && (

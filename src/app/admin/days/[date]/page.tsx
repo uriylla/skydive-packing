@@ -38,7 +38,10 @@ async function DayContent(props: PageProps<"/admin/days/[date]">) {
       />
       <div className="mb-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
         <p className="text-lg">
-          Total de plegados: <strong className="text-2xl">{day.total}</strong>
+          Total de plegados: <strong className="text-2xl">{day.total}</strong>{" "}
+          <span className="text-base opacity-70">
+            · Tándem <strong>{day.tandem}</strong> · Normal <strong>{day.normal}</strong>
+          </span>
         </p>
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           {day.byPacker.map((p) => (
@@ -46,7 +49,10 @@ async function DayContent(props: PageProps<"/admin/days/[date]">) {
               <Link href={`/admin/packers/${p.packerId}`} className="hover:underline">
                 {p.name}
               </Link>{" "}
-              — <strong>{p.count}</strong>
+              — <strong>{p.count}</strong>{" "}
+              <span className="opacity-60">
+                ({p.tandem} T · {p.normal} N)
+              </span>
             </li>
           ))}
         </ul>

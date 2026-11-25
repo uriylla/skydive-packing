@@ -59,7 +59,11 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
       .returning({ id: users.id });
     await db
       .insert(parachutes)
-      .values([{ number: "012" }, { number: "023" }, { number: "050", retired: true }]);
+      .values([
+        { number: "012" },
+        { number: "023", kind: "tandem" },
+        { number: "050", retired: true },
+      ]);
     // Madrid is UTC+2 in September.
     await pack(ana, "012", "2026-09-21T07:42:00Z"); // 21/09 09:42
     await pack(carlos, "023", "2026-09-22T07:48:00Z"); // 22/09 09:48
@@ -75,10 +79,88 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
     const p023 = (await listPacks(db, {})).rows.find(
       (r) => r.parachuteNumber === "023",
     )!.parachuteId;
-    expect((await listPacks(db, { parachuteId: p023 })).total).toBe(2);
+    expect((await listPacks(db, { parachuteId: p023! })).total).toBe(2);
     // 09:00–10:00 local, both ends inclusive to the minute.
     expect((await listPacks(db, { timeFrom: "09:00", timeTo: "09:48" })).total).toBe(2);
     expect((await listPacks(db, { timeFrom: "23:59" })).total).toBe(1);
+  });
+
+  it("splits counts by type and filters by type / external", async () => {
+    const at = new Date("2026-09-22T15:00:00Z");
+    await registerPack(
+      db,
+      {
+        clientId: randomUUID(),
+        packerId: ana,
+        external: { kind: "tandem", label: "Pedro" },
+        packedAt: at,
+      },
+      at,
+    );
+    const all = await listPacks(db, {});
+    expect([all.total, all.tandem, all.normal]).toEqual([5, 3, 2]);
+    expect((await listPacks(db, { kind: "tandem" })).total).toBe(3);
+    const ext = await listPacks(db, { external: true });
+    expect(ext.rows.map((r) => [r.parachuteId, r.externalLabel, r.kind])).toEqual([
+      [null, "Pedro", "tandem"],
+    ]);
+    const day = await getDay(db, "2026-09-22");
+    expect([day?.total, day?.tandem, day?.normal]).toEqual([4, 3, 1]);
+    expect(day?.byPacker.find((p) => p.name === "Ana")).toMatchObject({
+      count: 2,
+      tandem: 2,
+      normal: 0,
+    });
+    expect((await listDays(db)).rows[0]).toMatchObject({ packs: 4, tandem: 3, normal: 1 });
+  });
+
+  it("keeps the type a pack was registered with if the parachute is reclassified", async () => {
+    await db.update(parachutes).set({ kind: "normal" });
+    expect((await listPacks(db, { kind: "tandem" })).total).toBe(2);
+  });
+
+  it("corrects between registered and external parachutes", async () => {
+    const [latest] = (await listPacks(db, {})).rows; // Carlos, 012 (normal)
+    const toExt = await correctPack(
+      db,
+      latest.id,
+      { packerId: carlos, external: { kind: "tandem", label: "Cliente Luis" } },
+      boss,
+    );
+    if (!toExt.ok) throw new Error(toExt.error);
+    expect(await getPack(db, toExt.id)).toMatchObject({
+      parachuteId: null,
+      externalLabel: "Cliente Luis",
+      kind: "tandem",
+    });
+    // Same external parachute with another type is a real change.
+    const kindFix = await correctPack(
+      db,
+      toExt.id,
+      { packerId: carlos, external: { kind: "normal", label: "Cliente Luis" } },
+      boss,
+    );
+    if (!kindFix.ok) throw new Error(kindFix.error);
+    const back = await correctPack(
+      db,
+      kindFix.id,
+      { packerId: carlos, parachuteNumber: "23" },
+      boss,
+    );
+    if (!back.ok) throw new Error(back.error);
+    expect(await getPack(db, back.id)).toMatchObject({
+      parachuteNumber: "023",
+      externalLabel: null,
+      kind: "tandem",
+    });
+    expect(
+      await correctPack(
+        db,
+        back.id,
+        { packerId: carlos, external: { kind: "normal", label: " " } },
+        boss,
+      ),
+    ).toMatchObject({ ok: false });
   });
 
   it("paginates newest first", async () => {

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { KIND_LABEL, KINDS } from "@/lib/kinds";
 import { PageHeader, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
@@ -35,6 +36,7 @@ async function EditParachutePageContent(props: PageProps<"/admin/parachutes/[id]
         action={saveParachuteAction.bind(null, id)}
         initial={{
           number: p.number,
+          kind: p.kind,
           model: p.model ?? "",
           serialNumber: p.serialNumber ?? "",
           owner: p.owner ?? "",
@@ -42,6 +44,7 @@ async function EditParachutePageContent(props: PageProps<"/admin/parachutes/[id]
           notes: p.notes ?? "",
         }}
         statuses={PARACHUTE_STATUSES.map((s) => [s, STATUS_LABEL[s]])}
+        kinds={KINDS.map((k) => [k, KIND_LABEL[k]])}
         cancelHref={`/admin/parachutes/${id}`}
         submitLabel="Guardar cambios"
       />

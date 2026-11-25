@@ -1,3 +1,4 @@
+import { KindBadge } from "@/components/parachute-cell";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackHistory } from "@/components/pack-history";
@@ -79,6 +80,7 @@ async function ParachutePageContent(props: PageProps<"/admin/parachutes/[id]">) 
       )}
       <DetailList
         items={[
+          ["Tipo", <KindBadge key="k" kind={p.kind} />],
           ["Modelo", p.model],
           ["Número de serie", p.serialNumber],
           ["Propietario", p.owner],

@@ -8,6 +8,7 @@ import { buttonClass, PageHeader, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import { getFilterOptions, listPacks, PackFilterSchema, type PackFilter } from "@/lib/history";
+import { KIND_LABEL, KINDS } from "@/lib/kinds";
 import { dayKey } from "@/lib/time";
 
 export const metadata = { title: "Historial · Plegados" };
@@ -33,11 +34,15 @@ async function History(props: PageProps<"/admin/history">) {
   await requireSupervisor("/admin/history");
   await connection(); // "Hoy" depends on request time
   const sp = await props.searchParams;
-  const filter: PackFilter = PackFilterSchema.parse(
-    Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, first(v) || undefined])),
-  );
+  const raw = Object.fromEntries(Object.entries(sp).map(([k, v]) => [k, first(v) || undefined]));
+  // The parachute select has an "Externos" option.
+  if (raw.parachuteId === "external") {
+    raw.parachuteId = undefined;
+    raw.external = "1";
+  }
+  const filter: PackFilter = PackFilterSchema.parse(raw);
   const page = parsePage(first(sp.page));
-  const [{ rows, total }, options] = await Promise.all([
+  const [{ rows, total, tandem, normal }, options] = await Promise.all([
     listPacks(db, filter, { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE }),
     getFilterOptions(db),
   ]);
@@ -48,7 +53,8 @@ async function History(props: PageProps<"/admin/history">) {
     timeFrom: filter.timeFrom,
     timeTo: filter.timeTo,
     packerId: filter.packerId?.toString(),
-    parachuteId: filter.parachuteId?.toString(),
+    parachuteId: filter.external ? "external" : filter.parachuteId?.toString(),
+    kind: filter.kind,
     includeVoided: filter.includeVoided ? "1" : undefined,
   };
   const filtered = Object.values(params).some(Boolean);
@@ -57,7 +63,7 @@ async function History(props: PageProps<"/admin/history">) {
 
   return (
     <>
-      <form className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" role="search">
+      <form className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7" role="search">
         <label>
           <span className={label}>Desde</span>
           <input
@@ -114,14 +120,30 @@ async function History(props: PageProps<"/admin/history">) {
           <span className={label}>Paracaídas</span>
           <select
             name="parachuteId"
-            defaultValue={filter.parachuteId ?? ""}
+            defaultValue={filter.external ? "external" : (filter.parachuteId ?? "")}
             className={`${inputBaseClass} w-full`}
           >
             <option value="">Todos</option>
+            <option value="external">Externos (no registrados)</option>
             {options.chutes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.number}
                 {c.retired ? " (baja)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className={label}>Tipo</span>
+          <select
+            name="kind"
+            defaultValue={filter.kind ?? ""}
+            className={`${inputBaseClass} w-full`}
+          >
+            <option value="">Todos</option>
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {KIND_LABEL[k]}
               </option>
             ))}
           </select>
@@ -152,6 +174,12 @@ async function History(props: PageProps<"/admin/history">) {
 
       <p className="mb-2 text-sm">
         <strong>{total}</strong> plegado{total === 1 ? "" : "s"}
+        {total > 0 && (
+          <span className="opacity-70">
+            {" "}
+            · Tándem {tandem} · Normal {normal}
+          </span>
+        )}
         {filter.includeVoided ? " (incluidos anulados)" : ""}
       </p>
       <PackTable rows={rows} emptyText="Ningún plegado coincide con el filtro." />

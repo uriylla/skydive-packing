@@ -8,6 +8,7 @@ import type { FormState } from "@/lib/form-state";
 
 type Values = {
   number: string;
+  kind: string;
   model: string;
   serialNumber: string;
   owner: string;
@@ -19,12 +20,14 @@ export function ParachuteForm({
   action,
   initial,
   statuses,
+  kinds,
   cancelHref,
   submitLabel,
 }: {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   initial: Values;
   statuses: [string, string][];
+  kinds: [string, string][];
   cancelHref: string;
   submitLabel: string;
 }) {
@@ -43,6 +46,13 @@ export function ParachuteForm({
           required
           autoFocus
           hint="El número pintado en el equipo, p. ej. 023."
+        />
+        <SelectField
+          label="Tipo"
+          name="kind"
+          defaultValue={v.kind}
+          options={kinds}
+          error={e.kind}
         />
         <SelectField
           label="Estado"

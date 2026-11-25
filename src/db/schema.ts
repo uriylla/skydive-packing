@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -12,8 +13,12 @@ import {
   uuid,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { KINDS } from "@/lib/kinds";
 
 export const userRole = pgEnum("user_role", ["packer", "supervisor"]);
+
+/** Packers are paid differently for tandem and normal parachutes. */
+export const parachuteKind = pgEnum("parachute_kind", KINDS);
 
 export const parachuteStatus = pgEnum("parachute_status", [
   "active",
@@ -52,6 +57,7 @@ export const parachutes = pgTable(
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     /** Number painted on the rig, e.g. "023". */
     number: text().notNull(),
+    kind: parachuteKind().notNull().default("normal"),
     model: text(),
     serialNumber: text("serial_number"),
     owner: text(),
@@ -98,9 +104,12 @@ export const packs = pgTable(
     packerId: integer("packer_id")
       .notNull()
       .references(() => users.id),
-    parachuteId: integer("parachute_id")
-      .notNull()
-      .references(() => parachutes.id),
+    /** Null for external packs (a parachute not in the system, e.g. a customer's rig). */
+    parachuteId: integer("parachute_id").references(() => parachutes.id),
+    /** Type at the time of packing; copied from the parachute so later edits don't change pay. */
+    kind: parachuteKind().notNull(),
+    /** Short description of an external parachute, e.g. "Pedro – Javelin azul". */
+    externalLabel: text("external_label"),
     dayId: integer("day_id")
       .notNull()
       .references(() => operatingDays.id),
@@ -120,6 +129,10 @@ export const packs = pgTable(
   },
   (t) => [
     uniqueIndex("packs_client_id_key").on(t.clientId),
+    check(
+      "packs_parachute_or_external",
+      sql`(${t.parachuteId} is null) <> (${t.externalLabel} is null)`,
+    ),
     index("packs_day_idx").on(t.dayId, t.packedAt),
     index("packs_parachute_idx").on(t.parachuteId, t.packedAt),
     index("packs_packer_idx").on(t.packerId, t.packedAt),

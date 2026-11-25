@@ -1,8 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { parachutes, users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { packs, parachutes, users } from "@/db/schema";
 import { createTestDb, testDbUrl } from "@/test/db";
-import { getDaySummary, normalizeNumber, registerPack, resolvePackedAt } from "./packs";
+import {
+  ensureOperatingDay,
+  getDaySummary,
+  normalizeNumber,
+  registerPack,
+  resolvePackedAt,
+} from "./packs";
 
 describe("normalizeNumber", () => {
   it("strips leading zeros and case", () => {
@@ -42,12 +49,14 @@ describe.skipIf(!testDbUrl)("registerPack (db)", () => {
       .insert(users)
       .values([{ name: "Carlos" }, { name: "Ana" }, { name: "Pepe", active: false }])
       .returning({ id: users.id });
-    await db.insert(parachutes).values([
-      { number: "023" },
-      { number: "045", status: "out_of_service" },
-      { number: "050", retired: true },
-      { number: "060", status: "maintenance" },
-    ]);
+    await db
+      .insert(parachutes)
+      .values([
+        { number: "023" },
+        { number: "045", status: "out_of_service" },
+        { number: "050", retired: true },
+        { number: "060", status: "maintenance" },
+      ]);
   });
 
   const at = new Date("2026-09-22T12:37:00Z"); // 14:37 in Madrid
@@ -63,7 +72,9 @@ describe.skipIf(!testDbUrl)("registerPack (db)", () => {
     });
     const summary = await getDaySummary(db, "2026-09-22");
     expect(summary.total).toBe(1);
-    expect(summary.byPacker).toEqual([{ packerId: carlos, name: "Carlos", count: 1 }]);
+    expect(summary.byPacker).toEqual([
+      { packerId: carlos, name: "Carlos", count: 1, tandem: 0, normal: 1 },
+    ]);
   });
 
   it("is idempotent for the same clientId", async () => {
@@ -82,6 +93,45 @@ describe.skipIf(!testDbUrl)("registerPack (db)", () => {
       ok: false,
       error: "PARACHUTE_OUT_OF_SERVICE",
     });
+  });
+
+  it("records the parachute's type on the pack", async () => {
+    await db.update(parachutes).set({ kind: "tandem" }).where(eq(parachutes.number, "023"));
+    expect(await reg(carlos, "023")).toMatchObject({ ok: true, pack: { kind: "tandem" } });
+    expect(await reg(carlos, "060")).toMatchObject({ ok: true, pack: { kind: "normal" } });
+  });
+
+  it("registers external parachutes, which skip status checks", async () => {
+    const res = await registerPack(
+      db,
+      {
+        clientId: randomUUID(),
+        packerId: ana,
+        external: { kind: "tandem", label: "  Pedro – Javelin  " },
+      },
+      at,
+    );
+    expect(res).toMatchObject({
+      ok: true,
+      pack: { parachuteNumber: null, externalLabel: "Pedro – Javelin", kind: "tandem" },
+    });
+    const s = await getDaySummary(db, "2026-09-22");
+    expect(s).toMatchObject({ total: 1, tandem: 1, normal: 0 });
+    expect(s.recent[0]).toMatchObject({ parachuteNumber: null, externalLabel: "Pedro – Javelin" });
+    expect(
+      await registerPack(
+        db,
+        { clientId: randomUUID(), packerId: ana, external: { kind: "normal", label: " " } },
+        at,
+      ),
+    ).toMatchObject({ ok: false, error: "INVALID_EXTERNAL" });
+  });
+
+  it("enforces exactly one of parachute or external label in the database", async () => {
+    const day = await ensureOperatingDay(db, "2026-09-22");
+    await expect(
+      db.insert(packs).values({ packerId: ana, dayId: day, kind: "normal" }),
+    ).rejects.toThrow();
   });
 
   it("allows parachutes in maintenance", async () => {

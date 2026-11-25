@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { KindBadge, ParachuteCell } from "@/components/parachute-cell";
 import { Badge, DetailList, PageHeader, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
@@ -31,7 +32,8 @@ async function PackContent(props: PageProps<"/admin/packs/[id]">) {
       <PageHeader
         title={
           <>
-            {formatTime(p.packedAt)} — {p.packerName} — {p.parachuteNumber}{" "}
+            {formatTime(p.packedAt)} — {p.packerName} —{" "}
+            {p.parachuteNumber ?? `Externo: ${p.externalLabel}`}{" "}
             <span className="align-middle">
               {p.voided ? (
                 <Badge tone="gray">Anulado</Badge>
@@ -53,12 +55,8 @@ async function PackContent(props: PageProps<"/admin/packs/[id]">) {
               {p.packerName}
             </Link>,
           ],
-          [
-            "Paracaídas",
-            <Link key="c" href={`/admin/parachutes/${p.parachuteId}`} className="hover:underline">
-              {p.parachuteNumber}
-            </Link>,
-          ],
+          ["Paracaídas", <ParachuteCell key="c" {...p} />],
+          ["Tipo", <KindBadge key="k" kind={p.kind} />],
           ...(p.voided
             ? ([
                 [
@@ -103,8 +101,8 @@ async function PackContent(props: PageProps<"/admin/packs/[id]">) {
           <section>
             <h2 className="mb-1 text-lg font-semibold">Corregir</h2>
             <p className="mb-3 text-sm opacity-70">
-              Si el plegador o el paracaídas no eran los correctos. Se mantiene la hora y queda
-              constancia del registro original.
+              Si el plegador, el paracaídas o el tipo no eran los correctos. Se mantiene la hora y
+              queda constancia del registro original.
             </p>
             <CorrectForm
               action={correctPackAction.bind(null, id)}
@@ -112,7 +110,13 @@ async function PackContent(props: PageProps<"/admin/packs/[id]">) {
                 String(o.id),
                 o.active ? o.name : `${o.name} (desactivado)`,
               ])}
-              initial={{ packerId: String(p.packerId), parachuteNumber: p.parachuteNumber }}
+              initial={{
+                packerId: String(p.packerId),
+                mode: p.parachuteId === null ? "external" : "registered",
+                parachuteNumber: p.parachuteNumber ?? "",
+                kind: p.kind,
+                externalLabel: p.externalLabel ?? "",
+              }}
             />
           </section>
           <section>

@@ -31,7 +31,18 @@ async function DaysList(props: PageProps<"/admin/days">) {
 
   return (
     <>
-      <Table head={["Jornada", "Plegados", "Plegadores", "Paracaídas", "Primero", "Último"]}>
+      <Table
+        head={[
+          "Jornada",
+          "Plegados",
+          "Tándem",
+          "Normal",
+          "Plegadores",
+          "Paracaídas",
+          "Primero",
+          "Último",
+        ]}
+      >
         {rows.map((d) => (
           <tr key={d.date}>
             <td className="py-2 pr-4 font-semibold">
@@ -40,6 +51,8 @@ async function DaysList(props: PageProps<"/admin/days">) {
               </Link>
             </td>
             <td className="py-2 pr-4 text-base font-semibold tabular-nums">{d.packs}</td>
+            <td className="py-2 pr-4 tabular-nums">{d.tandem}</td>
+            <td className="py-2 pr-4 tabular-nums">{d.normal}</td>
             <td className="py-2 pr-4 tabular-nums">{d.packers}</td>
             <td className="py-2 pr-4 tabular-nums">{d.parachutes}</td>
             <td className="py-2 pr-4 font-mono">{d.first ? formatTime(new Date(d.first)) : "—"}</td>

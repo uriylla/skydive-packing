@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PackRow } from "@/lib/history";
 import { formatDateTime } from "@/lib/time";
+import { KindBadge, ParachuteCell } from "./parachute-cell";
 import { Empty, Table } from "./ui";
 
 /** Pack list for a parachute or a packer (the other side is shown as a link). */
@@ -25,7 +26,7 @@ export function PackHistory({
         <Empty>Todavía no hay plegados.</Empty>
       ) : (
         <>
-          <Table head={["Fecha y hora", show === "packer" ? "Plegador" : "Paracaídas", ""]}>
+          <Table head={["Fecha y hora", show === "packer" ? "Plegador" : "Paracaídas", "Tipo", ""]}>
             {rows.map((r) => (
               <tr key={r.id} className={r.voided ? "line-through opacity-50" : undefined}>
                 <td className="py-2 pr-4 font-mono whitespace-nowrap">
@@ -37,12 +38,18 @@ export function PackHistory({
                       {r.packerName}
                     </Link>
                   ) : (
-                    <Link href={`/admin/parachutes/${r.parachuteId}`} className="hover:underline">
-                      {r.parachuteNumber}
-                    </Link>
+                    <ParachuteCell {...r} />
                   )}
                 </td>
-                <td className="py-2 text-xs">{r.voided && `Anulado: ${r.voidedReason ?? ""}`}</td>
+                <td className="py-2 pr-4">
+                  <KindBadge kind={r.kind} />
+                </td>
+                <td className="py-2 text-right text-xs whitespace-nowrap">
+                  {r.voided && `Anulado: ${r.voidedReason ?? ""} `}
+                  <Link href={`/admin/packs/${r.id}`} className="text-blue-600 hover:underline">
+                    {r.voided ? "Ver" : "Corregir"}
+                  </Link>
+                </td>
               </tr>
             ))}
           </Table>

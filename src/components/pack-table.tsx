@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PackRow } from "@/lib/history";
 import { formatDayKey, formatTime } from "@/lib/time";
+import { KindBadge, ParachuteCell } from "./parachute-cell";
 import { Badge, Empty, Table } from "./ui";
 
 /** Packs with links to the jornada, packer, parachute and the pack itself (to void/correct). */
@@ -14,7 +15,7 @@ export function PackTable({
   emptyText?: string;
 }) {
   if (rows.length === 0) return <Empty>{emptyText}</Empty>;
-  const head = [...(showDate ? ["Jornada"] : []), "Hora", "Plegador", "Paracaídas", ""];
+  const head = [...(showDate ? ["Jornada"] : []), "Hora", "Plegador", "Paracaídas", "Tipo", ""];
   return (
     <Table head={head}>
       {rows.map((r) => (
@@ -35,9 +36,10 @@ export function PackTable({
             </Link>
           </td>
           <td className={`py-2 pr-4 font-semibold ${r.voided ? "line-through" : ""}`}>
-            <Link href={`/admin/parachutes/${r.parachuteId}`} className="hover:underline">
-              {r.parachuteNumber}
-            </Link>
+            <ParachuteCell {...r} />
+          </td>
+          <td className="py-2 pr-4">
+            <KindBadge kind={r.kind} />
           </td>
           <td className="py-2 text-right whitespace-nowrap">
             {r.voided && (

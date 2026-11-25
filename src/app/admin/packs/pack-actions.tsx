@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Field, FormError, SelectField } from "@/components/form";
 import { buttonClass } from "@/components/ui";
 import { useFormAction } from "@/components/use-form-action";
 import type { FormState } from "@/lib/form-state";
+import { KIND_LABEL, KINDS, MAX_EXTERNAL_LABEL } from "@/lib/kinds";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 
@@ -27,6 +29,14 @@ export function VoidForm({ action }: { action: Action }) {
   );
 }
 
+type CorrectValues = {
+  packerId: string;
+  mode: string;
+  parachuteNumber: string;
+  kind: string;
+  externalLabel: string;
+};
+
 export function CorrectForm({
   action,
   people,
@@ -34,21 +44,58 @@ export function CorrectForm({
 }: {
   action: Action;
   people: [string, string][];
-  initial: { packerId: string; parachuteNumber: string };
+  initial: CorrectValues;
 }) {
   const { state, pending, onSubmit } = useFormAction(action);
-  const v = { ...initial, reason: "", ...state.values };
+  const v = { ...initial, reason: "", ...state.values } as CorrectValues & { reason: string };
+  const [mode, setMode] = useState(v.mode);
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Plegador" name="packerId" defaultValue={v.packerId} options={people} />
+      <SelectField label="Plegador" name="packerId" defaultValue={v.packerId} options={people} />
+      <fieldset className="flex gap-4 text-sm">
+        <legend className="mb-1 text-sm font-medium">Paracaídas</legend>
+        {(
+          [
+            ["registered", "Registrado"],
+            ["external", "Externo (no registrado)"],
+          ] as const
+        ).map(([value, text]) => (
+          <label key={value} className="flex items-center gap-2">
+            <input
+              type="radio"
+              name="mode"
+              value={value}
+              checked={mode === value}
+              onChange={() => setMode(value)}
+            />
+            {text}
+          </label>
+        ))}
+      </fieldset>
+      {mode === "registered" ? (
         <Field
-          label="Paracaídas"
+          label="Número de paracaídas"
           name="parachuteNumber"
           defaultValue={v.parachuteNumber}
           required
         />
-      </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+          <SelectField
+            label="Tipo"
+            name="kind"
+            defaultValue={v.kind}
+            options={KINDS.map((k) => [k, KIND_LABEL[k]])}
+          />
+          <Field
+            label="Descripción"
+            name="externalLabel"
+            defaultValue={v.externalLabel}
+            maxLength={MAX_EXTERNAL_LABEL}
+            required
+          />
+        </div>
+      )}
       <Field
         label="Motivo (opcional)"
         name="reason"

@@ -1,3 +1,5 @@
+import { KindBadge } from "@/components/parachute-cell";
+import { KIND_LABEL, KINDS, type Kind } from "@/lib/kinds";
 import { Suspense } from "react";
 import Link from "next/link";
 import { inputBaseClass } from "@/components/form";
@@ -40,7 +42,8 @@ async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
     ? (sp.status as ParachuteStatus)
     : undefined;
   const retired = sp.retired === "1";
-  const rows = await listParachutes(db, { q, status, retired });
+  const kind = KINDS.includes(sp.kind as Kind) ? (sp.kind as Kind) : undefined;
+  const rows = await listParachutes(db, { q, status, kind, retired });
 
   return (
     <>
@@ -57,6 +60,14 @@ async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
           aria-label="Buscar"
           className={`${inputBaseClass} w-full max-w-xs`}
         />
+        <select name="kind" defaultValue={kind ?? ""} aria-label="Tipo" className={inputBaseClass}>
+          <option value="">Todos los tipos</option>
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {KIND_LABEL[k]}
+            </option>
+          ))}
+        </select>
         <select
           name="status"
           defaultValue={status ?? ""}
@@ -81,7 +92,7 @@ async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
 
       {rows.length === 0 ? (
         <Empty>
-          {q || status || retired
+          {q || status || kind || retired
             ? "Ningún paracaídas coincide con el filtro."
             : "Todavía no hay paracaídas."}
         </Empty>
@@ -89,6 +100,7 @@ async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
         <Table
           head={[
             "Número",
+            "Tipo",
             "Modelo",
             "Nº de serie",
             "Propietario",
@@ -103,6 +115,9 @@ async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
                 <Link href={`/admin/parachutes/${p.id}`} className="text-blue-600 hover:underline">
                   {p.number}
                 </Link>
+              </td>
+              <td className="py-2 pr-4">
+                <KindBadge kind={p.kind} />
               </td>
               <td className="py-2 pr-4">{p.model ?? "—"}</td>
               <td className="py-2 pr-4">{p.serialNumber ?? "—"}</td>

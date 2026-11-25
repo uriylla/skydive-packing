@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, ilike, max, ne, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { packs, parachutes, parachuteStatus } from "@/db/schema";
-import { normalizeNumber, type Db } from "./packs";
+import { KINDS, normalizeNumber, type Db, type Kind } from "./packs";
 
 export const PARACHUTE_STATUSES = parachuteStatus.enumValues;
 export type ParachuteStatus = (typeof PARACHUTE_STATUSES)[number];
@@ -26,6 +26,7 @@ export const ParachuteInput = z.object({
     .min(1, "Obligatorio.")
     .max(20, "Máximo 20 caracteres.")
     .regex(/^[A-Za-z0-9-]+$/, "Solo letras, números y guiones."),
+  kind: z.enum(KINDS, "Elige el tipo."),
   model: optionalText(80),
   serialNumber: optionalText(80),
   owner: optionalText(80),
@@ -86,6 +87,7 @@ export async function getParachute(db: Db, id: number) {
 
 export type ParachuteFilter = {
   status?: ParachuteStatus;
+  kind?: Kind;
   /** Include parachutes that have been "dados de baja". */
   retired?: boolean;
   q?: string;
@@ -94,6 +96,7 @@ export type ParachuteFilter = {
 export async function listParachutes(db: Db, filter: ParachuteFilter = {}) {
   const where: (SQL | undefined)[] = [eq(parachutes.retired, filter.retired ?? false)];
   if (filter.status) where.push(eq(parachutes.status, filter.status));
+  if (filter.kind) where.push(eq(parachutes.kind, filter.kind));
   const q = filter.q?.trim();
   if (q) {
     const like = `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -111,6 +114,7 @@ export async function listParachutes(db: Db, filter: ParachuteFilter = {}) {
     .select({
       id: parachutes.id,
       number: parachutes.number,
+      kind: parachutes.kind,
       model: parachutes.model,
       serialNumber: parachutes.serialNumber,
       owner: parachutes.owner,

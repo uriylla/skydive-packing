@@ -6,17 +6,27 @@ import { db } from "@/db";
 import { verifyPackerPin } from "@/lib/accounts";
 import { getStation } from "@/lib/auth";
 import { REQUIRE_PACKER_PIN } from "@/lib/config";
-import { registerPack, type RegisterPackResult } from "@/lib/packs";
+import { KINDS, MAX_EXTERNAL_LABEL, registerPack, type RegisterPackResult } from "@/lib/packs";
 import { signToken, verifyToken } from "@/lib/tokens";
 
-const RegisterPackSchema = z.object({
-  clientId: z.uuid(),
-  packerId: z.number().int().positive(),
-  parachuteNumber: z.string().trim().min(1).max(20),
-  packedAt: z.iso.datetime().optional(),
-  /** Issued by selectPackerAction when PINs are required. */
-  packerToken: z.string().max(1000).optional(),
-});
+const RegisterPackSchema = z
+  .object({
+    clientId: z.uuid(),
+    packerId: z.number().int().positive(),
+    /** A registered parachute… */
+    parachuteNumber: z.string().trim().min(1).max(20).optional(),
+    /** …or one that isn't in the system (e.g. a customer's rig). */
+    external: z
+      .object({ kind: z.enum(KINDS), label: z.string().trim().min(1).max(MAX_EXTERNAL_LABEL) })
+      .optional(),
+    packedAt: z.iso.datetime().optional(),
+    /** Issued by selectPackerAction when PINs are required. */
+    packerToken: z.string().max(1000).optional(),
+  })
+  .refine(
+    (v) => Boolean(v.parachuteNumber) !== Boolean(v.external),
+    "parachuteNumber xor external",
+  );
 
 export type RegisterPackActionInput = z.input<typeof RegisterPackSchema>;
 

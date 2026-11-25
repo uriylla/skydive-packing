@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { KIND_LABEL, KINDS } from "@/lib/kinds";
 import { PageHeader, PageLoading } from "@/components/ui";
 import { requireSupervisor } from "@/lib/auth";
 import { PARACHUTE_STATUSES, STATUS_LABEL } from "@/lib/parachutes";
@@ -28,6 +29,7 @@ async function NewParachutePageContent() {
         action={saveParachuteAction.bind(null, null)}
         initial={{
           number: "",
+          kind: "",
           model: "",
           serialNumber: "",
           owner: "",
@@ -35,6 +37,7 @@ async function NewParachutePageContent() {
           notes: "",
         }}
         statuses={PARACHUTE_STATUSES.map((s) => [s, STATUS_LABEL[s]])}
+        kinds={[["", "Elige…"], ...KINDS.map((k): [string, string] => [k, KIND_LABEL[k]])]}
         cancelHref="/admin/parachutes"
         submitLabel="Crear paracaídas"
       />

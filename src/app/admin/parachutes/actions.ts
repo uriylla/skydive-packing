@@ -12,7 +12,7 @@ import {
   updateParachute,
 } from "@/lib/parachutes";
 
-const FIELDS = ["number", "model", "serialNumber", "owner", "status", "notes"] as const;
+const FIELDS = ["number", "kind", "model", "serialNumber", "owner", "status", "notes"] as const;
 
 /** Create (id = null) or update a parachute. Bind the id before passing it to the form. */
 export async function saveParachuteAction(

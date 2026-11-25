@@ -15,6 +15,7 @@ import {
 const input = (over: Partial<Record<string, string>> = {}) =>
   ParachuteInput.parse({
     number: "023",
+    kind: "normal",
     model: "",
     serialNumber: "",
     owner: "",

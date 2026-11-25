@@ -92,7 +92,12 @@ async function PersonPageContent(props: PageProps<"/admin/packers/[id]">) {
         <PinForm hasPin={p.hasPin} action={setPinAction.bind(null, id)} />
       </section>
 
-      <PackHistory rows={history.rows} total={history.total} show="parachute" />
+      <PackHistory
+        rows={history.rows}
+        total={history.total}
+        show="parachute"
+        historyHref={`/admin/history?packerId=${id}`}
+      />
     </>
   );
 }

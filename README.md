@@ -27,7 +27,7 @@ pnpm dev                      # http://localhost:3000
 | `pnpm db:generate` | Create a migration from changes in `src/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:studio` | Browse the database |
-| `pnpm db:seed` | Seed data (`--no-sample` for the supervisor only) |
+| `pnpm db:seed` | Seed data (`--no-sample` for the supervisor only, `--demo-packs` adds two weeks of random packs for trying things out) |
 
 ## Layout
 

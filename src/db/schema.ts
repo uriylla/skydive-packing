@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   date,
   index,
@@ -113,6 +114,8 @@ export const packs = pgTable(
     voidedReason: text("voided_reason"),
     voidedById: integer("voided_by_id").references(() => users.id),
     voidedAt: timestamp("voided_at", { withTimezone: true }),
+    /** Set on a pack created by correcting another one (which is then voided). */
+    correctionOfId: integer("correction_of_id").references((): AnyPgColumn => packs.id),
     createdAt,
   },
   (t) => [

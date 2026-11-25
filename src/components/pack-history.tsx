@@ -8,10 +8,13 @@ export function PackHistory({
   rows,
   total,
   show,
+  historyHref,
 }: {
   rows: PackRow[];
   total: number;
   show: "packer" | "parachute";
+  /** Link to the full, filterable history for this parachute/packer. */
+  historyHref: string;
 }) {
   return (
     <section className="mt-8">
@@ -44,9 +47,11 @@ export function PackHistory({
             ))}
           </Table>
           {total > rows.length && (
-            <p className="mt-2 text-sm opacity-60">
-              Mostrando los {rows.length} más recientes. El historial completo con filtros llega en
-              la sección Historial.
+            <p className="mt-2 text-sm">
+              <span className="opacity-60">Mostrando los {rows.length} más recientes. </span>
+              <Link href={historyHref} className="text-blue-600 hover:underline">
+                Ver todos en el historial
+              </Link>
             </p>
           )}
         </>

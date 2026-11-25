@@ -1,15 +1,22 @@
 /**
  * Seeds an initial supervisor plus sample packers and parachutes.
- * Safe to run more than once. Usage: pnpm db:seed [--no-sample]
+ * Safe to run more than once. Usage: pnpm db:seed [--no-sample] [--demo-packs]
+ *
+ * --demo-packs adds two weeks of random packs (for trying out jornadas and
+ * history). Development only.
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import * as schema from "../src/db/schema";
 import { parachutes, users } from "../src/db/schema";
+import { registerPack } from "../src/lib/packs";
 
 const client = postgres(process.env.DATABASE_URL!, { max: 1 });
-const db = drizzle(client, { casing: "snake_case" });
+const db = drizzle(client, { schema, casing: "snake_case" });
 
 async function main() {
   const username = (process.env.SEED_ADMIN_USERNAME ?? "admin").trim().toLowerCase();
@@ -33,9 +40,9 @@ async function main() {
 
   const existing = await db.select({ id: users.id }).from(users);
   if (existing.length <= 1) {
-    await db.insert(users).values(
-      ["Carlos", "Ana", "Juan"].map((name) => ({ name, role: "packer" as const })),
-    );
+    await db
+      .insert(users)
+      .values(["Carlos", "Ana", "Juan"].map((name) => ({ name, role: "packer" as const })));
   }
   console.log("✓ sample packers");
 
@@ -49,6 +56,44 @@ async function main() {
     target: parachutes.number,
   });
   console.log("✓ sample parachutes");
+
+  if (process.argv.includes("--demo-packs")) await demoPacks();
+}
+
+async function demoPacks() {
+  if (process.env.NODE_ENV === "production")
+    throw new Error("--demo-packs is for development only");
+  const packers = await db.select().from(users).where(eq(users.active, true));
+  const chutes = await db
+    .select()
+    .from(parachutes)
+    .where(and(eq(parachutes.retired, false), eq(parachutes.status, "active")));
+  if (!packers.length || !chutes.length) return;
+  const pick = <T>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
+  const now = Date.now();
+  let n = 0;
+  for (let daysAgo = 14; daysAgo >= 1; daysAgo--) {
+    const day = new Date(now - daysAgo * 86_400_000);
+    const count = 20 + Math.floor(Math.random() * 60);
+    for (let i = 0; i < count; i++) {
+      // Between 07:00 and 17:00 UTC (09:00–19:00 Madrid in summer).
+      const at = new Date(day);
+      at.setUTCHours(7, 0, 0, 0);
+      at.setTime(at.getTime() + Math.floor(Math.random() * 10 * 3_600_000));
+      const res = await registerPack(
+        db,
+        {
+          clientId: randomUUID(),
+          packerId: pick(packers).id,
+          parachuteNumber: pick(chutes).number,
+          packedAt: at,
+        },
+        at,
+      );
+      if (res.ok) n++;
+    }
+  }
+  console.log(`✓ ${n} demo packs over 14 days`);
 }
 
 main()

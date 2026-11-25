@@ -88,7 +88,12 @@ async function ParachutePageContent(props: PageProps<"/admin/parachutes/[id]">) 
           ["Observaciones", p.notes],
         ]}
       />
-      <PackHistory rows={history.rows} total={history.total} show="packer" />
+      <PackHistory
+        rows={history.rows}
+        total={history.total}
+        show="packer"
+        historyHref={`/admin/history?parachuteId=${id}`}
+      />
     </>
   );
 }

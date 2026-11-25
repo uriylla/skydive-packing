@@ -1,0 +1,2 @@
+ALTER TABLE "packs" ADD COLUMN "correction_of_id" integer;--> statement-breakpoint
+ALTER TABLE "packs" ADD CONSTRAINT "packs_correction_of_id_packs_id_fk" FOREIGN KEY ("correction_of_id") REFERENCES "public"."packs"("id") ON DELETE no action ON UPDATE no action;

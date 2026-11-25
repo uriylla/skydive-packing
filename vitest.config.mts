@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     // DB tests share one database; run files one at a time.
     fileParallelism: false,
+    // Playwright specs live in e2e/ and run with `pnpm e2e`.
+    exclude: ["**/node_modules/**", "e2e/**"],
   },
 });

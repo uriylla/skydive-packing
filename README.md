@@ -15,6 +15,7 @@ docker compose up -d          # local Postgres on :5432
 pnpm db:migrate               # apply migrations
 pnpm db:seed                  # supervisor + sample packers/parachutes
 docker compose exec db createdb -U packing packing_test   # once, for `pnpm test`
+docker compose exec db createdb -U packing packing_e2e    # once, for `pnpm e2e`
 pnpm dev                      # http://localhost:3000
 ```
 
@@ -24,6 +25,7 @@ pnpm dev                      # http://localhost:3000
 |---|---|
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `typecheck` / `test` | ESLint / tsc / Vitest (DB tests use `DATABASE_URL_TEST`; skipped if unset) |
+| `pnpm e2e` | Playwright end-to-end tests against a production build (run `pnpm build` first; uses `DATABASE_URL_E2E`, default `localhost:5433/packing_e2e`, which it wipes) |
 | `pnpm db:generate` | Create a migration from changes in `src/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:studio` | Browse the database |
@@ -48,6 +50,11 @@ scripts/seed.ts     seed data
 - **Packing devices** must be authorized once by a supervisor at `/station/setup`. Manage or revoke them in `/admin/stations`.
 - **Packer PINs** are off by default. Set `REQUIRE_PACKER_PIN=true` to require them.
 - `pnpm start` (production mode) refuses to run auth without a real `SESSION_SECRET` (`openssl rand -base64 32`).
+
+## Docs
+- [PLAN.md](./PLAN.md): scope, data model, milestones
+- [DEPLOY.md](./DEPLOY.md): deploying to Vercel + Neon, first supervisor, backups
+- [docs/GUIA.md](./docs/GUIA.md): user guide (Spanish) for packers and supervisors
 
 ## Notes
 - Next.js 16 with `cacheComponents` enabled: wrap DB reads in `<Suspense>` (or `"use cache"`).

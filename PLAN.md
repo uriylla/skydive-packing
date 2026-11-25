@@ -85,7 +85,7 @@ Because the URL is public, the packing screen can't be open to anyone.
 - **Supervisors:** `/login` with username and password (bcrypt), giving a 12 h httpOnly session cookie. Deactivating or demoting a user takes effect immediately, because every request re-checks the DB.
 - **Layers:** `src/proxy.ts` only redirects visitors with no session cookie away from `/admin/*` and `/station/setup`. The real checks live in `src/lib/auth.ts` (`getSupervisor`, `requireSupervisor`, `getStation`) and run in every gated page and Server Action.
 - **Secrets:** `SESSION_SECRET` (32+ chars) is required in production, and the app refuses to sign sessions without it. In development a built-in fallback is used.
-- **Not yet done:** login rate limiting / lockout (to add before going public, M6).
+- **Rate limiting:** supervisor login allows 5 failures per username and 20 per IP in 15 min; packer PINs allow 5 per packer and 20 per device. Failures are stored in `auth_failures`, so this works on serverless.
 
 ---
 
@@ -100,9 +100,9 @@ Because the URL is public, the packing screen can't be open to anyone.
 | 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | ✅ |
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | ✅ |
 | 5b | Parachute types + external packs | Tándem/Normal type on parachutes and packs, type splits everywhere, unregistered (customer) parachutes from the packing screen | 2 d | ✅ |
-| 6 | Hardening + deploy | Playwright tests for critical flows, Vercel + Neon setup, user guide | 1.5 d | |
+| 6 | Hardening + deploy | Login/PIN rate limiting, Playwright tests + GitHub Actions CI, Vercel + Neon setup, user guide | 1.5 d | ✅ (deploy itself: see DEPLOY.md) |
 
-**Total: about 13 working days.** Milestones 0–5b are done.
+**Total: about 13 working days.** All milestones are done; deploying needs your Vercel/Neon accounts (DEPLOY.md).
 
 ---
 

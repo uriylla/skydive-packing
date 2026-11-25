@@ -1,5 +1,5 @@
 import "server-only";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { getActiveStation, getActiveSupervisor } from "./accounts";
@@ -57,4 +57,10 @@ export async function getStation() {
   const payload = await verifyToken(token, "station");
   if (!payload) return null;
   return getActiveStation(db, payload.sid);
+}
+
+/** Best-effort client IP (Vercel and most proxies set x-forwarded-for). */
+export async function clientIp(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
 }

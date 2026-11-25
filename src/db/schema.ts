@@ -140,6 +140,20 @@ export const packs = pgTable(
   ],
 );
 
+/**
+ * Failed login / PIN attempts, for rate limiting. Keyed by what was attacked
+ * ("login:<username>", "login-ip:<ip>", "pin:<packerId>", …).
+ */
+export const authFailures = pgTable(
+  "auth_failures",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    key: text().notNull(),
+    createdAt,
+  },
+  (t) => [index("auth_failures_key_idx").on(t.key, t.createdAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Parachute = typeof parachutes.$inferSelect;
 export type OperatingDay = typeof operatingDays.$inferSelect;

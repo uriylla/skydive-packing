@@ -7,6 +7,7 @@ import { verifyPackerPin } from "@/lib/accounts";
 import { getStation } from "@/lib/auth";
 import { REQUIRE_PACKER_PIN } from "@/lib/config";
 import { KINDS, MAX_EXTERNAL_LABEL, registerPack, type RegisterPackResult } from "@/lib/packs";
+import { checkLimits, clearFailures, lockedMessage, recordFailure } from "@/lib/rate-limit";
 import { signToken, verifyToken } from "@/lib/tokens";
 
 const RegisterPackSchema = z
@@ -87,11 +88,22 @@ export async function selectPackerAction(input: {
   packerId: number;
   pin: string;
 }): Promise<SelectPackerResult> {
-  if (!(await getStation())) return { ok: false, message: UNAUTHORIZED_MESSAGE };
+  const station = await getStation();
+  if (!station) return { ok: false, message: UNAUTHORIZED_MESSAGE };
   const parsed = SelectPackerSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "PIN incorrecto." };
 
+  // A 4-digit PIN is easy to guess: limit tries per packer and per device.
+  const keys = [`pin:${parsed.data.packerId}`, `pin-station:${station.id}`];
+  const limit = await checkLimits(db, [
+    { key: keys[0], max: 5 },
+    { key: keys[1], max: 20 },
+  ]);
+  if (limit.locked) return { ok: false, message: lockedMessage(limit.retryAfterSeconds) };
+
   const check = await verifyPackerPin(db, parsed.data.packerId, parsed.data.pin);
+  if (!check.ok && check.error === "WRONG_PIN") await recordFailure(db, keys);
+  if (check.ok) await clearFailures(db, [keys[0]]);
   if (!check.ok) {
     const messages = {
       NOT_FOUND: "Plegador no encontrado.",

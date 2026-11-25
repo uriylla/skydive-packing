@@ -1,0 +1,111 @@
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+export const userRole = pgEnum("user_role", ["packer", "supervisor"]);
+
+export const parachuteStatus = pgEnum("parachute_status", [
+  "active",
+  "maintenance",
+  "out_of_service",
+]);
+
+const createdAt = timestamp("created_at", { withTimezone: true })
+  .notNull()
+  .defaultNow();
+
+/**
+ * People who use the app. Packers register packs; supervisors also manage
+ * parachutes, users and corrections. A supervisor can pack too.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    name: text().notNull(),
+    role: userRole().notNull().default("packer"),
+    /** Optional 4-digit PIN for the packing screen (bcrypt hash). */
+    pinHash: text("pin_hash"),
+    /** Login for the supervisor area (bcrypt hash). Supervisors only. */
+    username: text(),
+    passwordHash: text("password_hash"),
+    active: boolean().notNull().default(true),
+    createdAt,
+  },
+  (t) => [uniqueIndex("users_username_key").on(t.username)],
+);
+
+export const parachutes = pgTable(
+  "parachutes",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    /** Number painted on the rig, e.g. "023". */
+    number: text().notNull(),
+    model: text(),
+    serialNumber: text("serial_number"),
+    owner: text(),
+    status: parachuteStatus().notNull().default("active"),
+    notes: text(),
+    /** Soft delete ("dar de baja"): hidden from the packing screen, history kept. */
+    retired: boolean().notNull().default(false),
+    createdAt,
+  },
+  (t) => [uniqueIndex("parachutes_number_key").on(t.number)],
+);
+
+/** Jornada. One row per calendar date (APP_TIMEZONE), created on first pack. */
+export const operatingDays = pgTable(
+  "operating_days",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    date: date({ mode: "string" }).notNull(),
+    notes: text(),
+    createdAt,
+  },
+  (t) => [uniqueIndex("operating_days_date_key").on(t.date)],
+);
+
+export const packs = pgTable(
+  "packs",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    packerId: integer("packer_id")
+      .notNull()
+      .references(() => users.id),
+    parachuteId: integer("parachute_id")
+      .notNull()
+      .references(() => parachutes.id),
+    dayId: integer("day_id")
+      .notNull()
+      .references(() => operatingDays.id),
+    packedAt: timestamp("packed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    /** Corrections never delete: a wrong pack is voided with a reason. */
+    voided: boolean().notNull().default(false),
+    voidedReason: text("voided_reason"),
+    voidedById: integer("voided_by_id").references(() => users.id),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    createdAt,
+  },
+  (t) => [
+    index("packs_day_idx").on(t.dayId, t.packedAt),
+    index("packs_parachute_idx").on(t.parachuteId, t.packedAt),
+    index("packs_packer_idx").on(t.packerId, t.packedAt),
+    index("packs_packed_at_idx").on(sql`${t.packedAt} DESC`),
+  ],
+);
+
+export type User = typeof users.$inferSelect;
+export type Parachute = typeof parachutes.$inferSelect;
+export type OperatingDay = typeof operatingDays.$inferSelect;
+export type Pack = typeof packs.$inferSelect;

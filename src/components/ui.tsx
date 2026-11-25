@@ -95,3 +95,7 @@ export function DetailList({ items }: { items: [string, ReactNode][] }) {
     </dl>
   );
 }
+
+export function PageLoading() {
+  return <p className="text-sm opacity-50">Cargando…</p>;
+}

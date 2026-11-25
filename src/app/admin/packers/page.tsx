@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, ButtonLink, Empty, PageHeader, Table } from "@/components/ui";
+import { Badge, ButtonLink, Empty, PageHeader, Table, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import { REQUIRE_PACKER_PIN } from "@/lib/config";
@@ -8,7 +9,16 @@ import { formatDateTime } from "@/lib/time";
 
 export const metadata = { title: "Plegadores · Plegados" };
 
-export default async function PackersPage(props: PageProps<"/admin/packers">) {
+/** Static shell; the session check and data load stream in (instant navigation). */
+export default function PackersPage(props: PageProps<"/admin/packers">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <PackersPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function PackersPageContent(props: PageProps<"/admin/packers">) {
   await requireSupervisor("/admin/packers");
   const inactive = (await props.searchParams).inactive === "1";
   const people = await listPeople(db, { active: !inactive });

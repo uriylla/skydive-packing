@@ -1,4 +1,5 @@
-import { PageHeader } from "@/components/ui";
+import { Suspense } from "react";
+import { PageHeader, PageLoading } from "@/components/ui";
 import { requireSupervisor } from "@/lib/auth";
 import { PARACHUTE_STATUSES, STATUS_LABEL } from "@/lib/parachutes";
 import { saveParachuteAction } from "../actions";
@@ -6,7 +7,16 @@ import { ParachuteForm } from "../parachute-form";
 
 export const metadata = { title: "Nuevo paracaídas · Plegados" };
 
-export default async function NewParachutePage() {
+/** Static shell; the session check streams in (instant navigation). */
+export default function NewParachutePage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <NewParachutePageContent />
+    </Suspense>
+  );
+}
+
+async function NewParachutePageContent() {
   await requireSupervisor("/admin/parachutes/new");
   return (
     <>

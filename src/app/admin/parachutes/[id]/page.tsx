@@ -1,6 +1,14 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackHistory } from "@/components/pack-history";
-import { Badge, ButtonLink, buttonClass, DetailList, PageHeader } from "@/components/ui";
+import {
+  Badge,
+  ButtonLink,
+  buttonClass,
+  DetailList,
+  PageHeader,
+  PageLoading,
+} from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import { listPacks } from "@/lib/history";
@@ -12,7 +20,16 @@ import { StatusBadge } from "../status-badge";
 
 export const metadata = { title: "Paracaídas · Plegados" };
 
-export default async function ParachutePage(props: PageProps<"/admin/parachutes/[id]">) {
+/** Static shell; the session check and data load stream in (instant navigation). */
+export default function ParachutePage(props: PageProps<"/admin/parachutes/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <ParachutePageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function ParachutePageContent(props: PageProps<"/admin/parachutes/[id]">) {
   const id = parseId((await props.params).id);
   await requireSupervisor(`/admin/parachutes/${id}`);
   const [p, history] = await Promise.all([

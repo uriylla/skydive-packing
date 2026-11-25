@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import { parseId } from "@/lib/ids";
@@ -9,7 +10,16 @@ import { PersonForm } from "../../person-form";
 
 export const metadata = { title: "Editar persona · Plegados" };
 
-export default async function EditPersonPage(props: PageProps<"/admin/packers/[id]/edit">) {
+/** Static shell; the session check and data load stream in (instant navigation). */
+export default function EditPersonPage(props: PageProps<"/admin/packers/[id]/edit">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <EditPersonPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function EditPersonPageContent(props: PageProps<"/admin/packers/[id]/edit">) {
   const id = parseId((await props.params).id);
   await requireSupervisor(`/admin/packers/${id}/edit`);
   const p = await getPerson(db, id);

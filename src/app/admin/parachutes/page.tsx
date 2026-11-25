@@ -1,6 +1,15 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { inputBaseClass } from "@/components/form";
-import { Badge, ButtonLink, buttonClass, Empty, PageHeader, Table } from "@/components/ui";
+import {
+  Badge,
+  ButtonLink,
+  buttonClass,
+  Empty,
+  PageHeader,
+  Table,
+  PageLoading,
+} from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import {
@@ -14,7 +23,16 @@ import { StatusBadge } from "./status-badge";
 
 export const metadata = { title: "Paracaídas · Plegados" };
 
-export default async function ParachutesPage(props: PageProps<"/admin/parachutes">) {
+/** Static shell; the session check and data load stream in (instant navigation). */
+export default function ParachutesPage(props: PageProps<"/admin/parachutes">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <ParachutesPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function ParachutesPageContent(props: PageProps<"/admin/parachutes">) {
   await requireSupervisor("/admin/parachutes");
   const sp = await props.searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";

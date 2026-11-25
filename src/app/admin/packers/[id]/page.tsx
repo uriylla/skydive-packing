@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PackHistory } from "@/components/pack-history";
-import { Badge, ButtonLink, DetailList, PageHeader } from "@/components/ui";
+import { Badge, ButtonLink, DetailList, PageHeader, PageLoading } from "@/components/ui";
 import { db } from "@/db";
 import { requireSupervisor } from "@/lib/auth";
 import { REQUIRE_PACKER_PIN } from "@/lib/config";
@@ -13,7 +14,16 @@ import { ActiveToggle, PinForm } from "../person-controls";
 
 export const metadata = { title: "Plegador · Plegados" };
 
-export default async function PersonPage(props: PageProps<"/admin/packers/[id]">) {
+/** Static shell; the session check and data load stream in (instant navigation). */
+export default function PersonPage(props: PageProps<"/admin/packers/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <PersonPageContent {...props} />
+    </Suspense>
+  );
+}
+
+async function PersonPageContent(props: PageProps<"/admin/packers/[id]">) {
   const id = parseId((await props.params).id);
   const actor = await requireSupervisor(`/admin/packers/${id}`);
   const [p, history] = await Promise.all([getPerson(db, id), listPacks(db, { packerId: id })]);

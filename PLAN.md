@@ -60,9 +60,10 @@ Rules:
    - **Confirm**. A toast shows "14:37 — Carlos — 023". The packer stays selected.
    - "Today" list below shows the last ~10 packs with the day's total.
 2. Built-in checks:
-   - Retired or `out_of_service` parachutes are blocked.
-   - Deactivated packers are hidden.
-3. **Resilient submit:** if the network drops, the pack is queued in `localStorage` and retried, with a visible "pending" badge. This is not full offline mode, but no pack is silently lost.
+   - Retired or `out_of_service` parachutes are blocked. Parachutes `in maintenance` can still be packed (confirm with the client).
+   - Deactivated packers are hidden and rejected server-side.
+   - Numbers match without leading zeros ("23" finds "023"). An exact match wins, and an ambiguous number is rejected.
+3. **Resilient submit:** every pack goes through a `localStorage` queue with a device-generated `client_id`. If the network drops, it's retried every 15 s and when the connection returns, with a visible "pending" badge. Retries are idempotent (unique `client_id`), and the pack keeps the device's time if it's plausible (up to 48 h old). This is not full offline mode, but no pack is silently lost.
 
 ### Supervisor area (`/admin/*`, supervisor login)
 4. `/admin/parachutes`: list, filter by status, create/edit, retire. The detail page shows the pack history.
@@ -90,13 +91,13 @@ Because the URL is public, the packing screen can't be open to anyone.
 |---|---|---|---|---|
 | 0 | Setup | Next.js, TS, Tailwind, ESLint, Vitest, Drizzle, env, docker-compose | 0.5 d | ✅ |
 | 1 | Data model | Schema, first migration, seed script, time-zone helpers + tests | 1 d | ✅ |
-| 2 | Register-pack screen | Packer grid, parachute input, Server Action, checks, toast, today list, retry queue | 2 d | |
+| 2 | Register-pack screen | Packer grid, parachute input, Server Action, checks, toast, today list, retry queue | 2 d | ✅ |
 | 3 | Identification | Sessions (`jose`), station unlock, packer PIN toggle, supervisor login, `proxy.ts` | 1.5 d | |
 | 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | |
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | |
 | 6 | Hardening + deploy | Playwright tests for critical flows, Vercel + Neon setup, user guide | 1.5 d | |
 
-**Total: about 11 working days.** Milestones 0 and 1 are done.
+**Total: about 11 working days.** Milestones 0–2 are done.
 
 ---
 

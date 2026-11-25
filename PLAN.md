@@ -78,10 +78,12 @@ Rules:
 
 Because the URL is public, the packing screen can't be open to anyone.
 
-- **Station login (device):** a supervisor "unlocks" a device once (`/station/setup`). That sets a long-lived signed cookie, valid for about 90 days and revocable. Only unlocked devices can open `/`.
-- **Packers:** on an unlocked device, tap your name. The PIN is optional per installation (`REQUIRE_PACKER_PIN`) and decided by the client. The selected packer stays active until they switch or a few hours pass with no activity.
-- **Supervisors:** username and password, giving a session cookie (about 12 h) for `/admin/*`.
-- `src/proxy.ts` does optimistic redirects. The real authorization check is repeated in every Server Action and page (`requireStation()`, `requireSupervisor()`).
+- **Station (device) unlock:** a supervisor logs in and opens `/station/setup` on the device (or uses "Dispositivos → Autorizar este dispositivo"). That creates a `stations` row and sets a signed, httpOnly cookie valid for 90 days. `/admin/stations` lists devices with their last use and lets a supervisor **revoke** one. A revoked device is locked out on its next request, and its queued packs stay on the device until it's re-authorized. Each pack records the `station_id` it came from.
+- **Packers:** on an unlocked device, tap your name. **No PIN by default.** With `REQUIRE_PACKER_PIN=true`, tapping a name asks for a 4–8 digit PIN. A correct PIN returns a signed packer token (72 h) that's stored on the device and sent with every pack, and the server rejects packs whose token doesn't match the packer. PINs are checked only from unlocked devices. Supervisors set PINs in M4.
+- **Supervisors:** `/login` with username and password (bcrypt), giving a 12 h httpOnly session cookie. Deactivating or demoting a user takes effect immediately, because every request re-checks the DB.
+- **Layers:** `src/proxy.ts` only redirects visitors with no session cookie away from `/admin/*` and `/station/setup`. The real checks live in `src/lib/auth.ts` (`getSupervisor`, `requireSupervisor`, `getStation`) and run in every gated page and Server Action.
+- **Secrets:** `SESSION_SECRET` (32+ chars) is required in production, and the app refuses to sign sessions without it. In development a built-in fallback is used.
+- **Not yet done:** login rate limiting / lockout (to add before going public, M6).
 
 ---
 
@@ -92,12 +94,12 @@ Because the URL is public, the packing screen can't be open to anyone.
 | 0 | Setup | Next.js, TS, Tailwind, ESLint, Vitest, Drizzle, env, docker-compose | 0.5 d | ✅ |
 | 1 | Data model | Schema, first migration, seed script, time-zone helpers + tests | 1 d | ✅ |
 | 2 | Register-pack screen | Packer grid, parachute input, Server Action, checks, toast, today list, retry queue | 2 d | ✅ |
-| 3 | Identification | Sessions (`jose`), station unlock, packer PIN toggle, supervisor login, `proxy.ts` | 1.5 d | |
+| 3 | Identification | Sessions (`jose`), station unlock, packer PIN toggle, supervisor login, `proxy.ts` | 1.5 d | ✅ |
 | 4 | Parachutes & packers | CRUD pages by hand (forms + zod), detail pages with history | 2.5 d | |
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | |
 | 6 | Hardening + deploy | Playwright tests for critical flows, Vercel + Neon setup, user guide | 1.5 d | |
 
-**Total: about 11 working days.** Milestones 0–2 are done.
+**Total: about 11 working days.** Milestones 0–3 are done.
 
 ---
 

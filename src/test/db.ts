@@ -21,7 +21,7 @@ export function createTestDb() {
     },
     async reset() {
       await db.execute(
-        sql`TRUNCATE packs, operating_days, parachutes, users RESTART IDENTITY CASCADE`,
+        sql`TRUNCATE packs, operating_days, parachutes, stations, users RESTART IDENTITY CASCADE`,
       );
     },
     close: () => client.end(),

@@ -1,15 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { registerPackAction, type RegisterPackActionInput } from "../actions";
+import {
+  registerPackAction,
+  selectPackerAction,
+  type RegisterPackActionInput,
+  type RegisterPackActionResult,
+} from "../actions";
 import { createLocalStore } from "./local-store";
 
 type Packer = { id: number; name: string };
 type Chute = { number: string; status: "active" | "maintenance" | "out_of_service" };
-type QueuedPack = Required<RegisterPackActionInput>;
+type QueuedPack = RegisterPackActionInput & { packedAt: string };
+/** The packer selected on this device; `token` is set when PINs are required. */
+type Selection = { id: number; token?: string } | null;
 type Notice = { kind: "ok" | "error" | "info"; text: string } | null;
 
-const selectedPackerStore = createLocalStore<number | null>("station.packerId", null);
+const selectionStore = createLocalStore<Selection>("station.packer", null);
 const queueStore = createLocalStore<QueuedPack[]>("station.queue", []);
 
 const RETRY_MS = 15_000;
@@ -28,10 +35,12 @@ export function PackStation({
   packers,
   parachutes,
   timeZone,
+  requirePin,
 }: {
   packers: Packer[];
   parachutes: Chute[];
   timeZone: string;
+  requirePin: boolean;
 }) {
   const timeFmt = useMemo(
     () =>
@@ -43,23 +52,25 @@ export function PackStation({
       }),
     [timeZone],
   );
-  const storedPackerId = selectedPackerStore.useValue();
+  const selection = selectionStore.useValue();
   const queue = queueStore.useValue();
   const [number, setNumber] = useState("");
   const [notice, setNotice] = useState<Notice>(null);
   const [offline, setOffline] = useState(false);
+  const [pinFor, setPinFor] = useState<Packer | null>(null);
   const flushing = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Ignore a stored packer that has since been deactivated.
-  const packer = packers.find((p) => p.id === storedPackerId) ?? null;
+  // Ignore a stored packer that has since been deactivated, or lacks a PIN token.
+  const packer =
+    packers.find((p) => p.id === selection?.id && (!requirePin || selection?.token)) ?? null;
 
   const flush = useCallback(async (currentClientId?: string) => {
     if (flushing.current) return;
     flushing.current = true;
     try {
       for (const item of queueStore.get()) {
-        let res: Awaited<ReturnType<typeof registerPackAction>>;
+        let res: RegisterPackActionResult;
         try {
           res = await registerPackAction(item);
         } catch {
@@ -74,8 +85,16 @@ export function PackStation({
           return;
         }
         setOffline(false);
-        queueStore.set((q) => q.filter((x) => x.clientId !== item.clientId));
         const isCurrent = item.clientId === currentClientId;
+        if (!res.ok && res.error === "STATION_UNAUTHORIZED") {
+          // Keep everything queued: the packs go through once the device is re-authorized.
+          setNotice({ kind: "error", text: res.message });
+          return;
+        }
+        if (!res.ok && res.error === "PACKER_PIN_REQUIRED") {
+          selectionStore.set((s) => (s?.id === item.packerId ? null : s));
+        }
+        queueStore.set((q) => q.filter((x) => x.clientId !== item.clientId));
         if (res.ok) {
           if (isCurrent) {
             const { pack } = res;
@@ -117,10 +136,22 @@ export function PackStation({
     return () => window.clearTimeout(id);
   }, [notice]);
 
-  function selectPacker(id: number) {
-    selectedPackerStore.set(id);
+  function selectPacker(p: Packer) {
     setNotice(null);
+    if (requirePin && !(selection?.id === p.id && selection.token)) {
+      setPinFor(p);
+      return;
+    }
+    selectionStore.set({ id: p.id, token: selection?.id === p.id ? selection.token : undefined });
+    setPinFor(null);
     inputRef.current?.focus();
+  }
+
+  function onPinAccepted(p: Packer, token: string) {
+    selectionStore.set({ id: p.id, token });
+    setPinFor(null);
+    // Focus after the PIN form unmounts.
+    window.setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function submit(e: React.FormEvent) {
@@ -137,6 +168,7 @@ export function PackStation({
     const item: QueuedPack = {
       clientId: uuid(),
       packerId: packer.id,
+      packerToken: selection?.token,
       parachuteNumber: value,
       packedAt: new Date().toISOString(),
     };
@@ -162,7 +194,7 @@ export function PackStation({
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => selectPacker(p.id)}
+                  onClick={() => selectPacker(p)}
                   aria-pressed={selected}
                   className={`rounded-xl border-2 px-4 py-5 text-lg font-medium transition ${
                     selected
@@ -175,6 +207,14 @@ export function PackStation({
               );
             })}
           </div>
+        )}
+        {pinFor && (
+          <PinPrompt
+            key={pinFor.id}
+            packer={pinFor}
+            onAccepted={onPinAccepted}
+            onCancel={() => setPinFor(null)}
+          />
         )}
       </section>
 
@@ -242,5 +282,74 @@ export function PackStation({
         )}
       </div>
     </div>
+  );
+}
+
+function PinPrompt({
+  packer,
+  onAccepted,
+  onCancel,
+}: {
+  packer: Packer;
+  onAccepted: (p: Packer, token: string) => void;
+  onCancel: () => void;
+}) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    try {
+      const res = await selectPackerAction({ packerId: packer.id, pin });
+      if (res.ok) onAccepted(packer, res.token);
+      else {
+        setError(res.message);
+        setPin("");
+      }
+    } catch {
+      setError("Sin conexión. Inténtalo de nuevo.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-blue-600/40 p-3"
+    >
+      <label className="flex items-center gap-2">
+        <span className="text-sm">PIN de {packer.name}</span>
+        <input
+          type="password"
+          inputMode="numeric"
+          autoComplete="off"
+          pattern="[0-9]*"
+          maxLength={8}
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+          autoFocus
+          className="w-28 rounded-lg border-2 border-black/15 bg-transparent px-3 py-2 text-xl tracking-widest outline-none focus:border-blue-600 dark:border-white/20"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={pending || pin.length < 4}
+        className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white disabled:opacity-40"
+      >
+        Entrar
+      </button>
+      <button type="button" onClick={onCancel} className="text-sm opacity-70 hover:underline">
+        Cancelar
+      </button>
+      {error && (
+        <p role="alert" className="w-full text-sm text-red-700 dark:text-red-300">
+          {error}
+        </p>
+      )}
+    </form>
   );
 }

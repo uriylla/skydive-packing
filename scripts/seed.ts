@@ -12,7 +12,7 @@ const client = postgres(process.env.DATABASE_URL!, { max: 1 });
 const db = drizzle(client, { casing: "snake_case" });
 
 async function main() {
-  const username = process.env.SEED_ADMIN_USERNAME ?? "admin";
+  const username = (process.env.SEED_ADMIN_USERNAME ?? "admin").trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;
   if (!password || password === "change-me") {
     console.warn("⚠ SEED_ADMIN_PASSWORD is unset or default. Change it before deploying.");

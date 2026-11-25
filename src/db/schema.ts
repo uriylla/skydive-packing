@@ -63,6 +63,19 @@ export const parachutes = pgTable(
   (t) => [uniqueIndex("parachutes_number_key").on(t.number)],
 );
 
+/**
+ * A device (PC, tablet, phone) a supervisor has unlocked for the packing screen.
+ * The device holds a signed cookie with this id; revoking it locks the device out.
+ */
+export const stations = pgTable("stations", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: text().notNull(),
+  createdById: integer("created_by_id").references(() => users.id),
+  createdAt,
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+});
+
 /** Jornada. One row per calendar date (APP_TIMEZONE), created on first pack. */
 export const operatingDays = pgTable(
   "operating_days",
@@ -90,6 +103,8 @@ export const packs = pgTable(
     dayId: integer("day_id")
       .notNull()
       .references(() => operatingDays.id),
+    /** Device the pack was registered from (null for packs made before M3). */
+    stationId: integer("station_id").references(() => stations.id),
     packedAt: timestamp("packed_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -113,3 +128,4 @@ export type User = typeof users.$inferSelect;
 export type Parachute = typeof parachutes.$inferSelect;
 export type OperatingDay = typeof operatingDays.$inferSelect;
 export type Pack = typeof packs.$inferSelect;
+export type Station = typeof stations.$inferSelect;

@@ -19,6 +19,8 @@ export type RegisterPackInput = {
   parachuteNumber: string;
   /** When the pack was registered on the device (matters for queued retries). */
   packedAt?: Date;
+  /** Device the pack came from. */
+  stationId?: number;
 };
 
 export type RegisteredPack = {
@@ -150,6 +152,7 @@ export async function registerPack(
       parachuteId: chute.id,
       dayId,
       packedAt,
+      stationId: input.stationId,
     })
     .onConflictDoNothing({ target: packs.clientId });
 

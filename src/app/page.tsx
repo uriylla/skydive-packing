@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { db } from "@/db";
+import { getStation } from "@/lib/auth";
+import { REQUIRE_PACKER_PIN } from "@/lib/config";
 import { getDaySummary, getStationData } from "@/lib/packs";
 import { APP_TIMEZONE, dayKey } from "@/lib/time";
 import { PackStation } from "./_station/pack-station";
@@ -18,7 +21,9 @@ export default function Home() {
 }
 
 async function Station() {
-  // TODO(M3): requireStation() — only unlocked devices may see this screen.
+  const station = await getStation();
+  if (!station) return <UnauthorizedDevice />;
+
   await connection(); // "today" depends on request time
   const [{ packers, parachutes }, summary] = await Promise.all([
     getStationData(db),
@@ -26,8 +31,34 @@ async function Station() {
   ]);
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
-      <PackStation packers={packers} parachutes={parachutes} timeZone={APP_TIMEZONE} />
+      <div>
+        <PackStation
+          packers={packers}
+          parachutes={parachutes}
+          timeZone={APP_TIMEZONE}
+          requirePin={REQUIRE_PACKER_PIN}
+        />
+        <p className="mt-6 text-xs opacity-50">Dispositivo: {station.name}</p>
+      </div>
       <TodayPanel summary={summary} />
+    </div>
+  );
+}
+
+function UnauthorizedDevice() {
+  return (
+    <div className="max-w-md rounded-xl border border-black/10 p-6 dark:border-white/10">
+      <h2 className="text-lg font-semibold">Dispositivo no autorizado</h2>
+      <p className="mt-2 text-sm opacity-80">
+        Para registrar plegados desde este dispositivo, un responsable tiene que autorizarlo una
+        vez.
+      </p>
+      <Link
+        href="/station/setup"
+        className="mt-4 inline-block rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white"
+      >
+        Autorizar este dispositivo
+      </Link>
     </div>
   );
 }

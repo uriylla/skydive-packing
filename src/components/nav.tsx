@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { logoutAction } from "@/app/login/actions";
+import { getSupervisor } from "@/lib/auth";
 
 const links = [
   { href: "/", label: "Registrar" },
@@ -6,6 +9,7 @@ const links = [
   { href: "/admin/history", label: "Historial" },
   { href: "/admin/parachutes", label: "Paracaídas" },
   { href: "/admin/packers", label: "Plegadores" },
+  { href: "/admin/stations", label: "Dispositivos" },
 ];
 
 export function Nav() {
@@ -18,7 +22,31 @@ export function Nav() {
             {l.label}
           </Link>
         ))}
+        <div className="ml-auto text-sm">
+          <Suspense>
+            <SessionBadge />
+          </Suspense>
+        </div>
       </nav>
     </header>
+  );
+}
+
+async function SessionBadge() {
+  const user = await getSupervisor();
+  if (!user) {
+    return (
+      <Link href="/login" className="opacity-70 hover:underline">
+        Entrar
+      </Link>
+    );
+  }
+  return (
+    <form action={logoutAction} className="flex items-center gap-2">
+      <span className="opacity-70">{user.name}</span>
+      <button type="submit" className="hover:underline">
+        Salir
+      </button>
+    </form>
   );
 }

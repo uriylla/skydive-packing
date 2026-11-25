@@ -15,6 +15,13 @@
       "when": 1795623485626,
       "tag": "0001_pack_client_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795629421086,
+      "tag": "0002_stations",
+      "breakpoints": true
     }
   ]
 }

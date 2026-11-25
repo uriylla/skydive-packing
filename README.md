@@ -43,6 +43,12 @@ drizzle/            generated SQL migrations (commit them)
 scripts/seed.ts     seed data
 ```
 
+## Access
+- **Supervisors** log in at `/login` (seeded user: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD`).
+- **Packing devices** must be authorized once by a supervisor at `/station/setup`. Manage or revoke them in `/admin/stations`.
+- **Packer PINs** are off by default. Set `REQUIRE_PACKER_PIN=true` to require them.
+- `pnpm start` (production mode) refuses to run auth without a real `SESSION_SECRET` (`openssl rand -base64 32`).
+
 ## Notes
 - Next.js 16 with `cacheComponents` enabled: wrap DB reads in `<Suspense>` (or `"use cache"`).
 - The jornada date uses `APP_TIMEZONE` (default `Europe/Madrid`).

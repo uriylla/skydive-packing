@@ -32,6 +32,7 @@ If you create the Neon project yourself instead, copy its pooled and direct conn
    | `SESSION_SECRET` | A random string of 32+ characters: `openssl rand -base64 32`. Required; login refuses to work without it. Changing it logs everyone out and locks all packing devices (they must be re-authorized). |
    | `APP_TIMEZONE` | `Europe/Madrid` (defines which day a pack belongs to) |
    | `REQUIRE_PACKER_PIN` | `false` (or `true` to make packers enter a PIN) |
+   | `DEFAULT_LOCALE` | `es`, `en` or `ca`: the language for devices that haven't picked one and whose browser language isn't one of those three. English if unset. |
    | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | Set by the Neon integration |
 
 4. Deploy.

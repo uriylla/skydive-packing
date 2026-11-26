@@ -1,7 +1,19 @@
 /** Supported languages. Safe to import anywhere (proxy, server and client code). */
 export const LOCALES = ["es", "en", "ca"] as const;
 export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = "es";
+
+/** Used when there's no env setting, or it isn't a supported language. */
+export const FALLBACK_LOCALE: Locale = "en";
+
+/**
+ * The language for devices that haven't chosen one and whose browser
+ * language isn't supported. Set with the DEFAULT_LOCALE env variable
+ * (es, en or ca). Server-side only: the env variable isn't sent to browsers.
+ */
+export function defaultLocale(value = process.env.DEFAULT_LOCALE): Locale {
+  const normalized = value?.trim().toLowerCase();
+  return isLocale(normalized) ? normalized : FALLBACK_LOCALE;
+}
 
 /** Remembers the device's language (set by the proxy whenever a localized page is visited). */
 export const LOCALE_COOKIE = "locale";

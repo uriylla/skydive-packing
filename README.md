@@ -51,6 +51,7 @@ scripts/seed.ts     seed data
 - **Supervisors** log in at `/login` (seeded user: `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD`).
 - **Packing devices** must be authorized once by a supervisor at `/station/setup`. Manage or revoke them in `/admin/stations`.
 - **Packer PINs** are off by default. Set `REQUIRE_PACKER_PIN=true` to require them.
+- **Language:** each device uses the language it last picked, else its browser's (if es/en/ca), else `DEFAULT_LOCALE` (`es`, `en` or `ca`; English if unset).
 - `pnpm start` (production mode) refuses to run auth without a real `SESSION_SECRET` (`openssl rand -base64 32`).
 
 ## Docs

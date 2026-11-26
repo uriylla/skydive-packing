@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
-  DEFAULT_LOCALE,
+  defaultLocale,
   isLocale,
   LOCALE_COOKIE,
   LOCALE_HEADER,
@@ -17,7 +17,7 @@ const ADMIN_PATHS = /^\/(admin(\/|$)|station\/setup$)/;
 /**
  * 1. Every page lives under a language prefix (/es, /en, /ca). Paths without
  *    one are redirected to the device's language: the one it last used, else
- *    the browser's, else Spanish.
+ *    the browser's, else DEFAULT_LOCALE (English if unset).
  * 2. Remembers the language in a cookie, and passes it to Server Actions in a
  *    request header.
  * 3. Optimistic login check only: sends visitors without a supervisor cookie
@@ -32,7 +32,7 @@ export function proxy(request: NextRequest) {
     const saved = request.cookies.get(LOCALE_COOKIE)?.value;
     const preferred = isLocale(saved)
       ? saved
-      : (negotiateLocale(request.headers.get("accept-language")) ?? DEFAULT_LOCALE);
+      : (negotiateLocale(request.headers.get("accept-language")) ?? defaultLocale());
     const url = request.nextUrl.clone();
     url.pathname = `/${preferred}${pathname === "/" ? "" : pathname}`;
     return NextResponse.redirect(url);

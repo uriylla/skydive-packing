@@ -120,10 +120,10 @@ Packers are paid differently for tandem and normal parachutes, and some of the n
 
 ### 7. Languages (added after the proposal)
 
-The UI is available in **Spanish (default), English and Catalan**.
+The UI is available in **Spanish, English and Catalan**. The default is set with the `DEFAULT_LOCALE` env variable (`es`, `en` or `ca`), English if unset.
 
 - **Language in the URL:** every page lives under `/es`, `/en` or `/ca` (`src/app/[lang]/`), the approach the Next.js 16 docs recommend. Pages stay statically prerendered per language.
-- **Choosing it:** a picker (ES · EN · CA) in the nav keeps the current page and filters. A URL without a language (old bookmarks, `/admin/days`) is redirected by `src/proxy.ts` to the device's last language (a `locale` cookie), else the browser's language, else Spanish. Each device keeps its own language, so the packing PC can stay in Spanish while a supervisor uses English on their phone.
+- **Choosing it:** a picker (ES · EN · CA) in the nav keeps the current page and filters. A URL without a language (old bookmarks, `/admin/days`) is redirected by `src/proxy.ts` to the device's last language (a `locale` cookie), else the browser's language if supported, else `DEFAULT_LOCALE`. Each device keeps its own language, so the packing PC can stay in Spanish while a supervisor uses English on their phone.
 - **Dictionaries:** `src/i18n/dictionaries/{es,en,ca}.ts`. Spanish is the source. TypeScript and a unit test check that English and Catalan have the same keys and placeholders.
 - **Data layer stays language-neutral:** `src/lib` returns message keys (`msg("parachuteRetired", { number })`); Server Actions translate them using the page's language, which the proxy passes in an `x-locale` header (route params aren't available in actions).
 - **Not translated:** data people type (names, notes, void reasons, external descriptions). Dates stay numeric (`25/11/2026 14:37`) in every language. The Spanish user guide (docs/GUIA.md) isn't translated yet.

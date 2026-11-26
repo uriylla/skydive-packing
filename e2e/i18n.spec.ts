@@ -12,6 +12,16 @@ test.describe("browser language", () => {
   });
 });
 
+test.describe("unsupported browser language", () => {
+  test.use({ locale: "fr-FR" });
+
+  test("falls back to DEFAULT_LOCALE, English when unset", async ({ page }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/en$/);
+    await expect(page.getByText("Device not authorized")).toBeVisible();
+  });
+});
+
 test("the language picker switches language and the device remembers it", async ({ page }) => {
   await page.goto("/login");
   await expect(page).toHaveURL(/\/es\/login/);

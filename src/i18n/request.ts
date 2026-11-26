@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies, headers } from "next/headers";
-import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALE_HEADER, type Locale } from "./config";
+import { defaultLocale, isLocale, LOCALE_COOKIE, LOCALE_HEADER, type Locale } from "./config";
 import { getDictionary } from "./dictionaries";
 import { createI18n } from "./translate";
 
@@ -13,7 +13,7 @@ export async function getRequestLocale(): Promise<Locale> {
   const fromHeader = (await headers()).get(LOCALE_HEADER);
   if (isLocale(fromHeader)) return fromHeader;
   const fromCookie = (await cookies()).get(LOCALE_COOKIE)?.value;
-  return isLocale(fromCookie) ? fromCookie : DEFAULT_LOCALE;
+  return isLocale(fromCookie) ? fromCookie : defaultLocale();
 }
 
 /** Translations for Server Actions. */

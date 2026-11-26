@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localePath, negotiateLocale, pathLocale } from "./config";
+import { defaultLocale, localePath, negotiateLocale, pathLocale } from "./config";
 import { ca } from "./dictionaries/ca";
 import { en } from "./dictionaries/en";
 import { es } from "./dictionaries/es";
@@ -18,6 +18,14 @@ describe("locale helpers", () => {
     expect(pathLocale("/ca")).toBe("ca");
     expect(pathLocale("/admin")).toBeNull();
     expect(pathLocale("/")).toBeNull();
+  });
+
+  it("reads the default language from the env value, else English", () => {
+    expect(defaultLocale("es")).toBe("es");
+    expect(defaultLocale(" CA ")).toBe("ca");
+    expect(defaultLocale("fr")).toBe("en");
+    expect(defaultLocale("")).toBe("en");
+    expect(defaultLocale(undefined)).toBe("en");
   });
 
   it("negotiates Accept-Language", () => {

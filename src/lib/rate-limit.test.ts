@@ -4,8 +4,8 @@ import { checkLimits, clearFailures, lockedMessage, recordFailure, WINDOW_MS } f
 
 describe("lockedMessage", () => {
   it("rounds up to minutes", () => {
-    expect(lockedMessage(30)).toBe("Demasiados intentos fallidos. Prueba de nuevo en 1 minuto.");
-    expect(lockedMessage(601)).toContain("11 minutos");
+    expect(lockedMessage(30)).toEqual({ key: "lockedOneMinute", values: { minutes: 1 } });
+    expect(lockedMessage(601)).toEqual({ key: "lockedMinutes", values: { minutes: 11 } });
   });
 });
 

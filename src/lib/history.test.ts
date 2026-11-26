@@ -47,7 +47,7 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
       { clientId: randomUUID(), packerId, parachuteNumber, packedAt: at },
       at,
     );
-    if (!r.ok) throw new Error(r.message);
+    if (!r.ok) throw new Error(JSON.stringify(r.message));
     return r.pack.id;
   };
 
@@ -127,7 +127,7 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
       { packerId: carlos, external: { kind: "tandem", label: "Cliente Luis" } },
       boss,
     );
-    if (!toExt.ok) throw new Error(toExt.error);
+    if (!toExt.ok) throw new Error(JSON.stringify(toExt.error));
     expect(await getPack(db, toExt.id)).toMatchObject({
       parachuteId: null,
       externalLabel: "Cliente Luis",
@@ -140,14 +140,14 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
       { packerId: carlos, external: { kind: "normal", label: "Cliente Luis" } },
       boss,
     );
-    if (!kindFix.ok) throw new Error(kindFix.error);
+    if (!kindFix.ok) throw new Error(JSON.stringify(kindFix.error));
     const back = await correctPack(
       db,
       kindFix.id,
       { packerId: carlos, parachuteNumber: "23" },
       boss,
     );
-    if (!back.ok) throw new Error(back.error);
+    if (!back.ok) throw new Error(JSON.stringify(back.error));
     expect(await getPack(db, back.id)).toMatchObject({
       parachuteNumber: "023",
       externalLabel: null,
@@ -214,11 +214,11 @@ describe.skipIf(!testDbUrl)("history (db)", () => {
       await correctPack(db, latest.id, { packerId: carlos, parachuteNumber: "12" }, boss),
     ).toEqual({
       ok: false,
-      error: "No has cambiado nada.",
+      error: { key: "nothingChanged" },
     });
     // A retired parachute is allowed in a correction.
     const res = await correctPack(db, latest.id, { packerId: ana, parachuteNumber: "050" }, boss);
-    if (!res.ok) throw new Error(res.error);
+    if (!res.ok) throw new Error(JSON.stringify(res.error));
 
     const fixed = await getPack(db, res.id);
     expect(fixed).toMatchObject({

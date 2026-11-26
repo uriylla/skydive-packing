@@ -49,7 +49,7 @@ describe.skipIf(!testDbUrl)("parachutes (db)", () => {
     expect(a.ok).toBe(true);
     expect(await createParachute(db, input({ number: "23" }))).toEqual({
       ok: false,
-      errors: { number: "Ya existe el paracaídas 023." },
+      errors: { number: { key: "parachuteExists", values: { number: "023" } } },
     });
     const b = await createParachute(db, input({ number: "045" }));
     if (!a.ok || !b.ok) throw new Error();

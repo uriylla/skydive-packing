@@ -54,7 +54,7 @@ describe.skipIf(!testDbUrl)("people (db)", () => {
       db,
       person({ name: "Otra", role: "supervisor", username: "jefa", password: "secreto123" }),
     );
-    expect(dup).toEqual({ ok: false, errors: { username: "Ese usuario ya existe." } });
+    expect(dup).toEqual({ ok: false, errors: { username: { key: "usernameTaken" } } });
     const noPw = await createPerson(
       db,
       person({ name: "Otra", role: "supervisor", username: "otra" }),

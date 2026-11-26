@@ -1,5 +1,7 @@
-import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { Link } from "./link";
+
+export { PageLoading } from "./page-loading";
 
 export const buttonClass = {
   primary:
@@ -94,8 +96,4 @@ export function DetailList({ items }: { items: [string, ReactNode][] }) {
       ))}
     </dl>
   );
-}
-
-export function PageLoading() {
-  return <p className="text-sm opacity-50">Cargando…</p>;
 }

@@ -1,7 +1,8 @@
-import Link from "next/link";
+import { getI18n } from "@/i18n/server";
+import { Link } from "./link";
 
 /** "Anterior / Página 2 de 5 / Siguiente" links that keep the other query params. */
-export function Pagination({
+export async function Pagination({
   page,
   pageSize,
   total,
@@ -16,6 +17,7 @@ export function Pagination({
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   if (pages <= 1) return null;
+  const { d, f } = await getI18n();
   const href = (p: number) => {
     const q = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
@@ -26,23 +28,23 @@ export function Pagination({
   const link =
     "rounded-lg border border-black/15 px-3 py-1.5 hover:bg-black/5 dark:border-white/20";
   return (
-    <nav aria-label="Paginación" className="mt-4 flex items-center gap-3 text-sm">
+    <nav aria-label={d.pagination.label} className="mt-4 flex items-center gap-3 text-sm">
       {page > 1 ? (
         <Link href={href(page - 1)} className={link}>
-          ← Anterior
+          {d.pagination.previous}
         </Link>
       ) : (
-        <span className={`${link} opacity-40`}>← Anterior</span>
+        <span className={`${link} opacity-40`}>{d.pagination.previous}</span>
       )}
       <span className="opacity-70">
-        Página {page} de {pages}
+        {f(d.pagination.page, { page, pages })}
       </span>
       {page < pages ? (
         <Link href={href(page + 1)} className={link}>
-          Siguiente →
+          {d.pagination.next}
         </Link>
       ) : (
-        <span className={`${link} opacity-40`}>Siguiente →</span>
+        <span className={`${link} opacity-40`}>{d.pagination.next}</span>
       )}
     </nav>
   );

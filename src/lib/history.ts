@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm";
 import { z } from "zod";
 import { operatingDays, packs, parachutes, users } from "@/db/schema";
+import { msg, type Msg } from "@/i18n/translate";
 import { findParachute, kindCounts, KINDS, MAX_EXTERNAL_LABEL, type Db, type Kind } from "./packs";
 import { APP_TIMEZONE } from "./time";
 
@@ -213,7 +214,7 @@ export async function getPack(db: Db, id: number) {
   };
 }
 
-export type CorrectionResult = { ok: true; id: number } | { ok: false; error: string };
+export type CorrectionResult = { ok: true; id: number } | { ok: false; error: Msg };
 
 /** "Anular": the pack stays in the history, struck through, with the reason. */
 export async function voidPack(
@@ -224,13 +225,13 @@ export async function voidPack(
   now = new Date(),
 ): Promise<CorrectionResult> {
   const text = reason.trim();
-  if (!text) return { ok: false, error: "Indica el motivo." };
+  if (!text) return { ok: false, error: msg("reasonRequired") };
   const res = await db
     .update(packs)
     .set({ voided: true, voidedReason: text.slice(0, 200), voidedById: actorId, voidedAt: now })
     .where(and(eq(packs.id, id), eq(packs.voided, false)))
     .returning({ id: packs.id });
-  if (res.length === 0) return { ok: false, error: "El plegado ya estaba anulado o no existe." };
+  if (res.length === 0) return { ok: false, error: msg("alreadyVoided") };
   return { ok: true, id };
 }
 
@@ -241,7 +242,7 @@ export async function restorePack(db: Db, id: number): Promise<CorrectionResult>
     .from(packs)
     .where(and(eq(packs.correctionOfId, id), eq(packs.voided, false)));
   if (replacement) {
-    return { ok: false, error: "Este plegado se corrigió con otro registro; anula ese primero." };
+    return { ok: false, error: msg("restoreReplaced") };
   }
   await db
     .update(packs)
@@ -257,6 +258,8 @@ export type PackChange = {
   /** …or an external one. */
   external?: { kind: Kind; label: string };
   reason?: string;
+  /** Stored as the void reason of the original when `reason` is empty ("Corregido"). */
+  defaultReason?: string;
 };
 
 /**
@@ -271,29 +274,29 @@ export async function correctPack(
   now = new Date(),
 ): Promise<CorrectionResult> {
   const [original] = await db.select().from(packs).where(eq(packs.id, id));
-  if (!original) return { ok: false, error: "El plegado no existe." };
-  if (original.voided) return { ok: false, error: "No se puede corregir un plegado anulado." };
+  if (!original) return { ok: false, error: msg("packNotFound") };
+  if (original.voided) return { ok: false, error: msg("cannotCorrectVoided") };
 
   const [packer] = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.id, change.packerId));
-  if (!packer) return { ok: false, error: "Plegador no encontrado." };
+  if (!packer) return { ok: false, error: msg("packerNotFound") };
 
   let target: { parachuteId: number | null; kind: Kind; externalLabel: string | null };
   if (change.external) {
     const label = change.external.label.trim().slice(0, MAX_EXTERNAL_LABEL);
-    if (!label) return { ok: false, error: "Describe el paracaídas externo." };
-    if (!KINDS.includes(change.external.kind)) return { ok: false, error: "Tipo no válido." };
+    if (!label) return { ok: false, error: msg("externalLabelRequired") };
+    if (!KINDS.includes(change.external.kind)) return { ok: false, error: msg("invalidKind") };
     target = { parachuteId: null, kind: change.external.kind, externalLabel: label };
   } else {
     // Historical corrections may name a since-retired parachute, so no status check here.
     const number = change.parachuteNumber ?? "";
     const { match: chute, ambiguous } = await findParachute(db, number);
     if (ambiguous) {
-      return { ok: false, error: "Hay varios paracaídas con ese número; escríbelo completo." };
+      return { ok: false, error: msg("parachuteAmbiguous", { number }) };
     }
-    if (!chute) return { ok: false, error: `No existe el paracaídas "${number}".` };
+    if (!chute) return { ok: false, error: msg("parachuteNotFound", { number }) };
     target = { parachuteId: chute.id, kind: chute.kind, externalLabel: null };
   }
 
@@ -303,10 +306,10 @@ export async function correctPack(
     target.kind === original.kind &&
     target.externalLabel === original.externalLabel
   ) {
-    return { ok: false, error: "No has cambiado nada." };
+    return { ok: false, error: msg("nothingChanged") };
   }
 
-  const reason = change.reason?.trim() || "Corregido";
+  const reason = change.reason?.trim() || change.defaultReason || "Corregido";
   return db.transaction(async (tx) => {
     await tx
       .update(packs)

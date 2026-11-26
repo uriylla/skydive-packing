@@ -1,21 +1,30 @@
-import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 import type { PackRow } from "@/lib/history";
 import { formatDayKey, formatTime } from "@/lib/time";
 import { KindBadge, ParachuteCell } from "./parachute-cell";
+import { Link } from "./link";
 import { Badge, Empty, Table } from "./ui";
 
 /** Packs with links to the jornada, packer, parachute and the pack itself (to void/correct). */
-export function PackTable({
+export async function PackTable({
   rows,
   showDate = true,
-  emptyText = "No hay plegados.",
+  emptyText,
 }: {
   rows: PackRow[];
   showDate?: boolean;
   emptyText?: string;
 }) {
-  if (rows.length === 0) return <Empty>{emptyText}</Empty>;
-  const head = [...(showDate ? ["Jornada"] : []), "Hora", "Plegador", "Paracaídas", "Tipo", ""];
+  const { d, f } = await getI18n();
+  if (rows.length === 0) return <Empty>{emptyText ?? d.packs.empty}</Empty>;
+  const head = [
+    ...(showDate ? [d.field.day] : []),
+    d.field.time,
+    d.field.packer,
+    d.field.parachute,
+    d.field.kind,
+    "",
+  ];
   return (
     <Table head={head}>
       {rows.map((r) => (
@@ -44,16 +53,20 @@ export function PackTable({
           <td className="py-2 text-right whitespace-nowrap">
             {r.voided && (
               <span className="mr-3">
-                <Badge tone="gray">Anulado{r.voidedReason ? `: ${r.voidedReason}` : ""}</Badge>
+                <Badge tone="gray">
+                  {r.voidedReason
+                    ? f(d.common.voidedWithReason, { reason: r.voidedReason })
+                    : d.common.voided}
+                </Badge>
               </span>
             )}
             {!r.voided && r.correctionOfId && (
               <span className="mr-3">
-                <Badge tone="blue">Corregido</Badge>
+                <Badge tone="blue">{d.common.corrected}</Badge>
               </span>
             )}
             <Link href={`/admin/packs/${r.id}`} className="text-sm text-blue-600 hover:underline">
-              {r.voided ? "Ver" : "Corregir"}
+              {r.voided ? d.common.view : d.common.correct}
             </Link>
           </td>
         </tr>

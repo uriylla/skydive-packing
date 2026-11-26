@@ -1,5 +1,6 @@
 import { and, count, eq, gte, inArray, lt, min } from "drizzle-orm";
 import { authFailures } from "@/db/schema";
+import { msg, type Msg } from "@/i18n/translate";
 import type { Db } from "./packs";
 
 /** Failures allowed per key within the window, before the key is locked. */
@@ -41,7 +42,7 @@ export async function clearFailures(db: Db, keys: string[]) {
   await db.delete(authFailures).where(inArray(authFailures.key, keys));
 }
 
-export function lockedMessage(retryAfterSeconds: number): string {
+export function lockedMessage(retryAfterSeconds: number): Msg {
   const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));
-  return `Demasiados intentos fallidos. Prueba de nuevo en ${minutes} minuto${minutes === 1 ? "" : "s"}.`;
+  return msg(minutes === 1 ? "lockedOneMinute" : "lockedMinutes", { minutes });
 }

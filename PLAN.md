@@ -101,6 +101,7 @@ Because the URL is public, the packing screen can't be open to anyone.
 | 5 | Jornadas + History | Day list/detail, filterable history, void/correct | 2 d | ✅ |
 | 5b | Parachute types + external packs | Tándem/Normal type on parachutes and packs, type splits everywhere, unregistered (customer) parachutes from the packing screen | 2 d | ✅ |
 | 6 | Hardening + deploy | Login/PIN rate limiting, Playwright tests + GitHub Actions CI, Vercel + Neon setup, user guide | 1.5 d | ✅ (deploy itself: see DEPLOY.md) |
+| 7 | Languages | Spanish, English and Catalan UI; language in the URL, picker in the nav, remembered per device | 1.5 d | ✅ |
 
 **Total: about 13 working days.** All milestones are done; deploying needs your Vercel/Neon accounts (DEPLOY.md).
 
@@ -117,6 +118,17 @@ Packers are paid differently for tandem and normal parachutes, and some of the n
 - **Corrections** can switch a pack between a registered parachute and an external one, and change an external pack's type or description.
 - **Deferred:** a pay summary per packer by type and period (with optional rates), and an ownership field. The "Propietario" text covers ownership for now.
 
+### 7. Languages (added after the proposal)
+
+The UI is available in **Spanish (default), English and Catalan**.
+
+- **Language in the URL:** every page lives under `/es`, `/en` or `/ca` (`src/app/[lang]/`), the approach the Next.js 16 docs recommend. Pages stay statically prerendered per language.
+- **Choosing it:** a picker (ES · EN · CA) in the nav keeps the current page and filters. A URL without a language (old bookmarks, `/admin/days`) is redirected by `src/proxy.ts` to the device's last language (a `locale` cookie), else the browser's language, else Spanish. Each device keeps its own language, so the packing PC can stay in Spanish while a supervisor uses English on their phone.
+- **Dictionaries:** `src/i18n/dictionaries/{es,en,ca}.ts`. Spanish is the source. TypeScript and a unit test check that English and Catalan have the same keys and placeholders.
+- **Data layer stays language-neutral:** `src/lib` returns message keys (`msg("parachuteRetired", { number })`); Server Actions translate them using the page's language, which the proxy passes in an `x-locale` header (route params aren't available in actions).
+- **Not translated:** data people type (names, notes, void reasons, external descriptions). Dates stay numeric (`25/11/2026 14:37`) in every language. The Spanish user guide (docs/GUIA.md) isn't translated yet.
+- **Adding a language:** add it to `LOCALES` in `src/i18n/config.ts`, copy `en.ts`, translate it and register it in `src/i18n/dictionaries/index.ts`.
+
 ## 6. Open questions for the client
 
 1. Identification: should packers enter a PIN, or is tapping their name on an unlocked device enough?
@@ -124,7 +136,7 @@ Packers are paid differently for tandem and normal parachutes, and some of the n
 3. How reliable is the internet at the packing area? This decides whether full offline mode (optional) is really needed.
 4. Are parachute numbers unique and stable?
 5. Can packers void their own mistakes (for example within 5 minutes), or only supervisors?
-6. Language: Spanish UI only?
+6. ~~Language: Spanish UI only?~~ Spanish, English and Catalan (M7).
 
 ---
 

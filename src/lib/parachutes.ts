@@ -1,32 +1,27 @@
 import { and, asc, count, desc, eq, ilike, max, ne, or, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { packs, parachutes, parachuteStatus } from "@/db/schema";
+import { msg, type Msg } from "@/i18n/translate";
 import { KINDS, normalizeNumber, type Db, type Kind } from "./packs";
 
 export const PARACHUTE_STATUSES = parachuteStatus.enumValues;
 export type ParachuteStatus = (typeof PARACHUTE_STATUSES)[number];
 
-export const STATUS_LABEL: Record<ParachuteStatus, string> = {
-  active: "Activo",
-  maintenance: "En mantenimiento",
-  out_of_service: "Fuera de servicio",
-};
-
 const optionalText = (maxLen: number) =>
   z
     .string()
     .trim()
-    .max(maxLen, `Máximo ${maxLen} caracteres.`)
+    .max(maxLen, "maxChars")
     .transform((v) => (v === "" ? null : v));
 
 export const ParachuteInput = z.object({
   number: z
     .string()
     .trim()
-    .min(1, "Obligatorio.")
-    .max(20, "Máximo 20 caracteres.")
-    .regex(/^[A-Za-z0-9-]+$/, "Solo letras, números y guiones."),
-  kind: z.enum(KINDS, "Elige el tipo."),
+    .min(1, "required")
+    .max(20, "maxChars")
+    .regex(/^[A-Za-z0-9-]+$/, "parachuteNumberFormat"),
+  kind: z.enum(KINDS, "chooseKind"),
   model: optionalText(80),
   serialNumber: optionalText(80),
   owner: optionalText(80),
@@ -35,7 +30,8 @@ export const ParachuteInput = z.object({
 });
 export type ParachuteInput = z.output<typeof ParachuteInput>;
 
-export type FieldErrors<T> = Partial<Record<keyof T, string>>;
+/** Zod messages in the schemas above are message keys (see zodFieldErrors). */
+export type FieldErrors<T> = Partial<Record<keyof T, Msg>>;
 export type SaveResult<T> = { ok: true; id: number } | { ok: false; errors: FieldErrors<T> };
 
 /** Another parachute already uses this number (or the same number with other leading zeros). */
@@ -59,7 +55,7 @@ export async function createParachute(
   input: ParachuteInput,
 ): Promise<SaveResult<ParachuteInput>> {
   const taken = await numberTaken(db, input.number);
-  if (taken) return { ok: false, errors: { number: `Ya existe el paracaídas ${taken}.` } };
+  if (taken) return { ok: false, errors: { number: msg("parachuteExists", { number: taken }) } };
   const [row] = await db.insert(parachutes).values(input).returning({ id: parachutes.id });
   return { ok: true, id: row.id };
 }
@@ -70,7 +66,7 @@ export async function updateParachute(
   input: ParachuteInput,
 ): Promise<SaveResult<ParachuteInput>> {
   const taken = await numberTaken(db, input.number, id);
-  if (taken) return { ok: false, errors: { number: `Ya existe el paracaídas ${taken}.` } };
+  if (taken) return { ok: false, errors: { number: msg("parachuteExists", { number: taken }) } };
   await db.update(parachutes).set(input).where(eq(parachutes.id, id));
   return { ok: true, id };
 }

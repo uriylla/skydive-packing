@@ -1,13 +1,13 @@
 import { and, asc, count, desc, eq, max, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { packs, users, userRole } from "@/db/schema";
+import { msg, type Msg } from "@/i18n/translate";
 import { hashSecret } from "./accounts";
 import type { Db } from "./packs";
 import type { FieldErrors } from "./parachutes";
 
 export const ROLES = userRole.enumValues;
 export type Role = (typeof ROLES)[number];
-export const ROLE_LABEL: Record<Role, string> = { packer: "Plegador", supervisor: "Responsable" };
 
 export const PIN_REGEX = /^\d{4,8}$/;
 export const MIN_PASSWORD = 8;
@@ -16,7 +16,7 @@ const username = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^[a-z0-9._-]{3,30}$/, "3–30 caracteres: letras, números, punto, guion.");
+  .regex(/^[a-z0-9._-]{3,30}$/, "usernameFormat");
 
 /**
  * Create / edit a person. Supervisors need a username, and a password when
@@ -24,7 +24,7 @@ const username = z
  */
 export const PersonInput = z
   .object({
-    name: z.string().trim().min(1, "Obligatorio.").max(60, "Máximo 60 caracteres."),
+    name: z.string().trim().min(1, "required").max(60, "maxChars"),
     role: z.enum(ROLES),
     username: z.string().trim(),
     password: z.string(),
@@ -36,9 +36,12 @@ export const PersonInput = z
       ctx.addIssue({ code: "custom", path: ["username"], message: u.error.issues[0].message });
     if (v.password && v.password.length < MIN_PASSWORD) {
       ctx.addIssue({
-        code: "custom",
+        code: "too_small",
+        origin: "string",
+        minimum: MIN_PASSWORD,
+        inclusive: true,
         path: ["password"],
-        message: `Mínimo ${MIN_PASSWORD} caracteres.`,
+        message: "minChars",
       });
     }
   })
@@ -74,9 +77,9 @@ async function activeSupervisorCount(db: Db, exceptId: number) {
 export async function createPerson(db: Db, input: PersonInput): Promise<PersonResult> {
   if (input.role === "supervisor") {
     if (!input.password)
-      return { ok: false, errors: { password: "Obligatoria para responsables." } };
+      return { ok: false, errors: { password: msg("passwordRequiredSupervisor") } };
     if (await usernameTaken(db, input.username!)) {
-      return { ok: false, errors: { username: "Ese usuario ya existe." } };
+      return { ok: false, errors: { username: msg("usernameTaken") } };
     }
   }
   const [row] = await db
@@ -102,23 +105,23 @@ export async function updatePerson(
   actorId: number,
 ): Promise<PersonResult> {
   const current = await getPerson(db, id);
-  if (!current) return { ok: false, errors: { name: "No encontrado." } };
+  if (!current) return { ok: false, errors: { name: msg("notFound") } };
 
   const demoting = current.role === "supervisor" && input.role !== "supervisor";
   if (demoting) {
     if (id === actorId)
-      return { ok: false, errors: { role: "No puedes quitarte el rol de responsable." } };
+      return { ok: false, errors: { role: msg("cannotDemoteSelf") } };
     if (current.active && (await activeSupervisorCount(db, id)) === 0) {
-      return { ok: false, errors: { role: "Tiene que quedar al menos un responsable activo." } };
+      return { ok: false, errors: { role: msg("lastSupervisor") } };
     }
   }
 
   if (input.role === "supervisor") {
     if (await usernameTaken(db, input.username!, id)) {
-      return { ok: false, errors: { username: "Ese usuario ya existe." } };
+      return { ok: false, errors: { username: msg("usernameTaken") } };
     }
     if (current.role !== "supervisor" && !input.password) {
-      return { ok: false, errors: { password: "Obligatoria al dar el rol de responsable." } };
+      return { ok: false, errors: { password: msg("passwordRequiredPromote") } };
     }
   }
 
@@ -139,7 +142,7 @@ export async function updatePerson(
   return { ok: true, id };
 }
 
-export type SetActiveResult = { ok: true } | { ok: false; error: string };
+export type SetActiveResult = { ok: true } | { ok: false; error: Msg };
 
 export async function setPersonActive(
   db: Db,
@@ -148,10 +151,10 @@ export async function setPersonActive(
   actorId: number,
 ): Promise<SetActiveResult> {
   if (!active) {
-    if (id === actorId) return { ok: false, error: "No puedes desactivarte a ti mismo." };
+    if (id === actorId) return { ok: false, error: msg("cannotDeactivateSelf") };
     const person = await getPerson(db, id);
     if (person?.role === "supervisor" && (await activeSupervisorCount(db, id)) === 0) {
-      return { ok: false, error: "Tiene que quedar al menos un responsable activo." };
+      return { ok: false, error: msg("lastSupervisor") };
     }
   }
   await db.update(users).set({ active }).where(eq(users.id, id));

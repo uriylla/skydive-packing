@@ -1,30 +1,36 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { logoutAction } from "@/app/login/actions";
+import { logoutAction } from "@/app/[lang]/login/actions";
+import { getI18n } from "@/i18n/server";
 import { getSupervisor } from "@/lib/auth";
+import { LanguagePicker } from "./language-picker";
+import { Link } from "./link";
 
-const links = [
-  { href: "/", label: "Registrar" },
-  { href: "/admin/days", label: "Jornadas" },
-  { href: "/admin/history", label: "Historial" },
-  { href: "/admin/parachutes", label: "Paracaídas" },
-  { href: "/admin/packers", label: "Plegadores" },
-  { href: "/admin/stations", label: "Dispositivos" },
-];
-
-export function Nav() {
+export async function Nav() {
+  const { d, locale } = await getI18n();
+  const links = [
+    { href: "/", label: d.nav.register },
+    { href: "/admin/days", label: d.nav.days },
+    { href: "/admin/history", label: d.nav.history },
+    { href: "/admin/parachutes", label: d.nav.parachutes },
+    { href: "/admin/packers", label: d.nav.packers },
+    { href: "/admin/stations", label: d.nav.stations },
+  ];
   return (
     <header className="border-b border-black/10 dark:border-white/10">
       <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 p-4">
-        <span className="mr-2 font-semibold">Plegados</span>
+        <span className="mr-2 font-semibold">{d.nav.brand}</span>
         {links.map((l) => (
           <Link key={l.href} href={l.href} className="text-sm hover:underline">
             {l.label}
           </Link>
         ))}
-        <div className="ml-auto text-sm">
+        <div className="ml-auto flex items-center gap-4 text-sm">
           <Suspense>
             <SessionBadge />
+          </Suspense>
+          {/* Reads the URL, so it renders after the static shell. */}
+          <Suspense fallback={<span className="text-xs uppercase opacity-60">{locale}</span>}>
+            <LanguagePicker />
           </Suspense>
         </div>
       </nav>
@@ -33,11 +39,11 @@ export function Nav() {
 }
 
 async function SessionBadge() {
-  const user = await getSupervisor();
+  const [{ d }, user] = await Promise.all([getI18n(), getSupervisor()]);
   if (!user) {
     return (
       <Link href="/login" className="opacity-70 hover:underline">
-        Entrar
+        {d.nav.login}
       </Link>
     );
   }
@@ -45,7 +51,7 @@ async function SessionBadge() {
     <form action={logoutAction} className="flex items-center gap-2">
       <span className="opacity-70">{user.name}</span>
       <button type="submit" className="hover:underline">
-        Salir
+        {d.nav.logout}
       </button>
     </form>
   );

@@ -34,13 +34,15 @@ pnpm dev                      # http://localhost:3000
 ## Layout
 
 ```
-src/app/            routes (/ = packing station, /admin/* = supervisor area)
+src/app/[lang]/     routes under /es, /en, /ca (/ = packing station, /admin/* = supervisor area)
 src/components/     shared UI
 src/db/schema.ts    Drizzle schema (source of truth for the DB)
 src/db/index.ts     DB client (server only)
 src/lib/            domain logic (packs.ts) and helpers (time zone / jornada date)
-src/app/_station/   packing-station client UI (queue, packer grid)
-src/app/actions.ts  Server Actions
+src/app/[lang]/_station/   packing-station client UI (queue, packer grid)
+src/app/[lang]/actions.ts  Server Actions
+src/i18n/           languages: dictionaries (es is the source), helpers for server/client
+src/proxy.ts        language redirect + optimistic login check
 drizzle/            generated SQL migrations (commit them)
 scripts/seed.ts     seed data
 ```
@@ -59,3 +61,4 @@ scripts/seed.ts     seed data
 ## Notes
 - Next.js 16 with `cacheComponents` enabled: wrap DB reads in `<Suspense>` (or `"use cache"`).
 - The jornada date uses `APP_TIMEZONE` (default `Europe/Madrid`).
+- UI text lives in `src/i18n/dictionaries/`. Use `getI18n()` in Server Components, `useI18n()` in Client Components, `getRequestI18n()` in Server Actions, and `Link` from `@/components/link` (it keeps the language) for internal links. Paths in code are written without the language (`/admin/days`).

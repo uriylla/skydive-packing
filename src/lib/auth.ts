@@ -2,6 +2,8 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
+import { localePath } from "@/i18n/config";
+import { getRequestLocale } from "@/i18n/request";
 import { getActiveStation, getActiveSupervisor } from "./accounts";
 import { ADMIN_COOKIE, STATION_COOKIE } from "./auth-cookies";
 import { signToken, TOKEN_TTL_SECONDS, verifyToken, type TokenPayload } from "./tokens";
@@ -44,11 +46,19 @@ export async function getSupervisor() {
   return getActiveSupervisor(db, payload.uid);
 }
 
-/** For pages: redirects to /login (and back to `next` afterwards). */
+/**
+ * For pages and actions: redirects to the login page (and back to `next`
+ * afterwards). `next` is an app path without the language ("/admin/days").
+ */
 export async function requireSupervisor(next: string) {
   const user = await getSupervisor();
-  if (!user) redirect(`/login?next=${encodeURIComponent(next)}`);
+  if (!user) return redirectToLogin(next);
   return user;
+}
+
+export async function redirectToLogin(next: string): Promise<never> {
+  const locale = await getRequestLocale();
+  redirect(`${localePath(locale, "/login")}?next=${encodeURIComponent(localePath(locale, next))}`);
 }
 
 /** The unlocked station this device belongs to, or null (also null once revoked). */

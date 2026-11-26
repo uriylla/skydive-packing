@@ -3,11 +3,12 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/db/schema";
 import { operatingDays, packs, parachutes, users } from "@/db/schema";
 import { KINDS, MAX_EXTERNAL_LABEL, type Kind } from "./kinds";
+import { msg, type Msg } from "@/i18n/translate";
 import { dayKey } from "./time";
 
 export type Db = PostgresJsDatabase<typeof schema>;
 
-export { KIND_LABEL, KIND_SHORT, KINDS, MAX_EXTERNAL_LABEL, type Kind } from "./kinds";
+export { KINDS, MAX_EXTERNAL_LABEL, type Kind } from "./kinds";
 
 /** Sums packs by type, for the "8 T · 4 N" splits. */
 export const kindCounts = {
@@ -56,9 +57,9 @@ export type RegisterPackError =
 
 export type RegisterPackResult =
   | { ok: true; pack: RegisteredPack; duplicate: boolean }
-  | { ok: false; error: RegisterPackError; message: string };
+  | { ok: false; error: RegisterPackError; message: Msg };
 
-const fail = (error: RegisterPackError, message: string): RegisterPackResult => ({
+const fail = (error: RegisterPackError, message: Msg): RegisterPackResult => ({
   ok: false,
   error,
   message,
@@ -135,40 +136,31 @@ export async function registerPack(
   if (existing) return { ok: true, pack: existing, duplicate: true };
 
   const [packer] = await db.select().from(users).where(eq(users.id, input.packerId));
-  if (!packer) return fail("PACKER_NOT_FOUND", "Plegador no encontrado.");
-  if (!packer.active) return fail("PACKER_INACTIVE", `${packer.name} está desactivado.`);
+  if (!packer) return fail("PACKER_NOT_FOUND", msg("packerNotFound"));
+  if (!packer.active) return fail("PACKER_INACTIVE", msg("packerInactive", { name: packer.name }));
 
   // What was packed: a registered parachute, or an external one.
   let target: { parachuteId: number | null; kind: Kind; externalLabel: string | null };
   if (input.external) {
     const label = input.external.label.trim().slice(0, MAX_EXTERNAL_LABEL);
     if (!label || !KINDS.includes(input.external.kind)) {
-      return fail("INVALID_EXTERNAL", "Indica el tipo y una descripción del paracaídas externo.");
+      return fail("INVALID_EXTERNAL", msg("externalIncomplete"));
     }
     target = { parachuteId: null, kind: input.external.kind, externalLabel: label };
   } else {
     const number = input.parachuteNumber ?? "";
     const { match: chute, ambiguous } = await findParachute(db, number);
     if (ambiguous) {
-      return fail(
-        "PARACHUTE_AMBIGUOUS",
-        `Hay varios paracaídas que coinciden con "${number}". Escribe el número completo.`,
-      );
+      return fail("PARACHUTE_AMBIGUOUS", msg("parachuteAmbiguous", { number }));
     }
     if (!chute) {
-      return fail(
-        "PARACHUTE_NOT_FOUND",
-        `No existe el paracaídas "${number}". Si no está registrado, usa «Paracaídas externo».`,
-      );
+      return fail("PARACHUTE_NOT_FOUND", msg("parachuteNotFoundUseExternal", { number }));
     }
     if (chute.retired) {
-      return fail("PARACHUTE_RETIRED", `El paracaídas ${chute.number} está dado de baja.`);
+      return fail("PARACHUTE_RETIRED", msg("parachuteRetired", { number: chute.number }));
     }
     if (chute.status === "out_of_service") {
-      return fail(
-        "PARACHUTE_OUT_OF_SERVICE",
-        `El paracaídas ${chute.number} está fuera de servicio.`,
-      );
+      return fail("PARACHUTE_OUT_OF_SERVICE", msg("parachuteOutOfService", { number: chute.number }));
     }
     target = { parachuteId: chute.id, kind: chute.kind, externalLabel: null };
   }

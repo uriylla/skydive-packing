@@ -1,5 +1,7 @@
 # Guía de uso: registro de plegados
 
+Hay una versión con capturas de pantalla para imprimir o compartir: [guia-usuario.pdf](./guia-usuario.pdf).
+
 ## Idioma
 
 La aplicación está en **español, inglés y catalán**. Cambia el idioma con **ES · EN · CA**, arriba a la derecha. Cada dispositivo recuerda el suyo, así que el PC de la zona de plegado puede seguir en español aunque tú uses otro idioma en tu móvil.

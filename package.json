@@ -14,7 +14,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
     "vercel-build": "drizzle-kit migrate && next build",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "guide": "tsx scripts/guide/run.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

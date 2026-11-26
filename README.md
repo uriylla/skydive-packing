@@ -26,6 +26,7 @@ pnpm dev                      # http://localhost:3000
 | `pnpm dev` / `build` / `start` | Next.js |
 | `pnpm lint` / `typecheck` / `test` | ESLint / tsc / Vitest (DB tests use `DATABASE_URL_TEST`; skipped if unset) |
 | `pnpm e2e` | Playwright end-to-end tests against a production build (run `pnpm build` first; uses `DATABASE_URL_E2E`, default `localhost:5433/packing_e2e`, which it wipes) |
+| `pnpm guide` | Rebuild the illustrated PDF user guide (`docs/guia-usuario.pdf`): seeds `GUIDE_DATABASE_URL` (default `localhost:5433/packing_guide`, which it wipes), takes screenshots of a production build and renders the PDF. Run `pnpm build` first and create the database once (`docker compose exec db createdb -U packing packing_guide`). `--pdf-only` re-renders from existing screenshots after editing the text in `scripts/guide/content/` |
 | `pnpm db:generate` | Create a migration from changes in `src/db/schema.ts` |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:studio` | Browse the database |
@@ -57,7 +58,8 @@ scripts/seed.ts     seed data
 ## Docs
 - [PLAN.md](./PLAN.md): scope, data model, milestones
 - [DEPLOY.md](./DEPLOY.md): deploying to Vercel + Neon, first supervisor, backups
-- [docs/GUIA.md](./docs/GUIA.md): user guide (Spanish) for packers and supervisors
+- [docs/guia-usuario.pdf](./docs/guia-usuario.pdf): illustrated user guide (Spanish) for packers and supervisors, to print or share
+- [docs/GUIA.md](./docs/GUIA.md): the same guide as plain text
 
 ## Notes
 - Next.js 16 with `cacheComponents` enabled: wrap DB reads in `<Suspense>` (or `"use cache"`).

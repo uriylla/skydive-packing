@@ -93,6 +93,8 @@ export function PackStation({
             return;
           }
           setOffline(false);
+          // Back online: the "saved offline" notice no longer applies.
+          setNotice((n) => (n?.kind === "info" ? null : n));
           const isCurrent = item.clientId === currentClientId;
           if (!res.ok && res.error === "STATION_UNAUTHORIZED") {
             // Keep everything queued: the packs go through once the device is re-authorized.

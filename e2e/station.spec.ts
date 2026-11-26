@@ -55,9 +55,13 @@ test("queues packs while offline and sends them when back online", async ({ page
   await input.fill("031");
   await input.press("Enter");
   await expect(visible(page.getByText(/1 plegado pendiente de enviar/))).toBeVisible();
+  const offlineNotice = visible(page.getByText(/Sin conexión\. El plegado se ha guardado/));
+  await expect(offlineNotice).toBeVisible();
 
   await context.setOffline(false);
   await expect(visible(page.getByText(/pendiente de enviar/))).toHaveCount(0, { timeout: 30_000 });
+  // The offline notice goes away by itself once the queue is sent.
+  await expect(offlineNotice).toHaveCount(0);
   await page.reload();
   const panel = page.locator("section[aria-labelledby=today-heading]");
   await expect(panel.getByText(/Juan — 031/)).toBeVisible();
